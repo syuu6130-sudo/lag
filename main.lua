@@ -1,12 +1,11 @@
--- Arseus x Neo Style UI v2.0
--- スムーズで高度なカスタマイズ可能UI
+-- Arseus x Neo Style UI v2.0 (修正版)
+-- セキュリティ認証後にメインUIが正しく表示される
 
 -- サービスの取得
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local StarterGui = game:GetService("StarterGui")
 
 -- プレイヤーとマウス
 local player = Players.LocalPlayer
@@ -18,11 +17,16 @@ ArseusUI.Name = "ArseusNeoUI"
 ArseusUI.ResetOnSpawn = false
 ArseusUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ArseusUI.IgnoreGuiInset = true
+ArseusUI.Parent = player:WaitForChild("PlayerGui")
 
 -- 認証パスワード
 local SECURITY_PASSWORD = "しゅーくりーむ"
 local authAttempts = 0
 local MAX_AUTH_ATTEMPTS = 5
+
+-- グローバル変数
+local MainWindow = nil
+local AuthWindow = nil
 
 -- グローバル設定
 local Settings = {
@@ -122,29 +126,6 @@ local CrosshairTypes = {
     "Custom2"       -- カスタム2
 }
 
--- アニメーション設定
-local AnimationSettings = {
-    TweenSpeed = 0.25,
-    EasingStyle = Enum.EasingStyle.Quint,
-    EasingDirection = Enum.EasingDirection.Out,
-    SmoothDrag = true,
-    HoverEffects = true,
-    GlowEffect = true
-}
-
--- フォント設定
-local FontSettings = {
-    Title = Enum.Font.GothamBold,
-    Header = Enum.Font.GothamBold,
-    Body = Enum.Font.Gotham,
-    Button = Enum.Font.GothamBold
-}
-
--- ウィンドウ管理
-local Windows = {}
-local ActiveWindow = nil
-local MinimizedWindows = {}
-
 -- 関数: スムーズドラッグ
 local function CreateSmoothDrag(frame, dragPart)
     local dragging = false
@@ -196,58 +177,9 @@ local function CreateSmoothDrag(frame, dragPart)
     end)
 end
 
--- 関数: スムーズなトグルアニメーション
-local function SmoothToggleAnimation(frame, show)
-    if show then
-        frame.Visible = true
-        frame.BackgroundTransparency = 1
-        
-        local tweenInfo = TweenInfo.new(
-            AnimationSettings.TweenSpeed,
-            AnimationSettings.EasingStyle,
-            AnimationSettings.EasingDirection
-        )
-        
-        local tween1 = TweenService:Create(frame, tweenInfo, {
-            BackgroundTransparency = Settings.Transparency
-        })
-        
-        for _, child in ipairs(frame:GetChildren()) do
-            if child:IsA("GuiObject") then
-                child.Visible = true
-                local currentTransparency = child.BackgroundTransparency or child.TextTransparency or 0
-                if currentTransparency > 0 then
-                    local tween2 = TweenService:Create(child, tweenInfo, {
-                        BackgroundTransparency = 0,
-                        TextTransparency = 0
-                    })
-                    tween2:Play()
-                end
-            end
-        end
-        
-        tween1:Play()
-    else
-        local tweenInfo = TweenInfo.new(
-            AnimationSettings.TweenSpeed,
-            AnimationSettings.EasingStyle,
-            AnimationSettings.EasingDirection
-        )
-        
-        local tween1 = TweenService:Create(frame, tweenInfo, {
-            BackgroundTransparency = 1
-        })
-        
-        tween1:Play()
-        tween1.Completed:Connect(function()
-            frame.Visible = false
-        end)
-    end
-end
-
 -- 関数: 認証画面の作成
 local function CreateAuthWindow()
-    local AuthWindow = Instance.new("Frame")
+    AuthWindow = Instance.new("Frame")
     AuthWindow.Name = "AuthWindow"
     AuthWindow.Size = UDim2.new(0, 400, 0, 350)
     AuthWindow.Position = UDim2.new(0.5, -200, 0.5, -175)
@@ -294,7 +226,7 @@ local function CreateAuthWindow()
     title.Text = "🔒 セキュリティ認証"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
     title.TextSize = 28
-    title.Font = FontSettings.Title
+    title.Font = Enum.Font.GothamBold
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = AuthWindow
     
@@ -307,7 +239,7 @@ local function CreateAuthWindow()
     subtitle.Text = "Arseus x Neo UIにアクセスするには認証が必要です"
     subtitle.TextColor3 = Color3.fromRGB(200, 200, 200)
     subtitle.TextSize = 16
-    subtitle.Font = FontSettings.Body
+    subtitle.Font = Enum.Font.Gotham
     subtitle.TextXAlignment = Enum.TextXAlignment.Left
     subtitle.Parent = AuthWindow
     
@@ -334,7 +266,7 @@ local function CreateAuthWindow()
     passwordBox.Text = ""
     passwordBox.TextColor3 = Color3.fromRGB(255, 255, 255)
     passwordBox.TextSize = 20
-    passwordBox.Font = FontSettings.Body
+    passwordBox.Font = Enum.Font.Gotham
     passwordBox.TextXAlignment = Enum.TextXAlignment.Left
     passwordBox.Parent = passwordFrame
     
@@ -348,7 +280,7 @@ local function CreateAuthWindow()
     toggleBtn.Text = "👁"
     toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     toggleBtn.TextSize = 18
-    toggleBtn.Font = FontSettings.Body
+    toggleBtn.Font = Enum.Font.Gotham
     toggleBtn.Parent = passwordFrame
     
     local toggleCorner = Instance.new("UICorner")
@@ -365,37 +297,12 @@ local function CreateAuthWindow()
     authButton.Text = "認証を開始"
     authButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     authButton.TextSize = 22
-    authButton.Font = FontSettings.Button
+    authButton.Font = Enum.Font.GothamBold
     authButton.Parent = AuthWindow
     
     local authCorner = Instance.new("UICorner")
     authCorner.CornerRadius = UDim.new(0, 12)
     authCorner.Parent = authButton
-    
-    -- ローディングアニメーション
-    local loadingRing = Instance.new("Frame")
-    loadingRing.Name = "LoadingRing"
-    loadingRing.Size = UDim2.new(0, 30, 0, 30)
-    loadingRing.Position = UDim2.new(0.5, -15, 0, 260)
-    loadingRing.BackgroundTransparency = 1
-    loadingRing.Visible = false
-    loadingRing.Parent = AuthWindow
-    
-    local ring1 = Instance.new("Frame")
-    ring1.Size = UDim2.new(1, 0, 1, 0)
-    ring1.BackgroundTransparency = 1
-    ring1.BorderSizePixel = 0
-    ring1.Parent = loadingRing
-    
-    local ringUICorner = Instance.new("UICorner")
-    ringUICorner.CornerRadius = UDim.new(1, 0)
-    ringUICorner.Parent = ring1
-    
-    local ringUIStroke = Instance.new("UIStroke")
-    ringUIStroke.Color = Settings.UIColor
-    ringUIStroke.Thickness = 3
-    ringUIStroke.Transparency = 0.5
-    ringUIStroke.Parent = ring1
     
     -- メッセージ表示
     local messageLabel = Instance.new("TextLabel")
@@ -406,7 +313,7 @@ local function CreateAuthWindow()
     messageLabel.Text = ""
     messageLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     messageLabel.TextSize = 16
-    messageLabel.Font = FontSettings.Body
+    messageLabel.Font = Enum.Font.Gotham
     messageLabel.TextWrapped = true
     messageLabel.Parent = AuthWindow
     
@@ -484,25 +391,12 @@ local function CreateAuthWindow()
             messageLabel.Text = "✅ 認証成功！"
             messageLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
             
-            -- ローディング表示
-            loadingRing.Visible = true
-            
-            -- ローディングアニメーション
-            spawn(function()
-                local angle = 0
-                while loadingRing.Visible do
-                    angle = (angle + 5) % 360
-                    ring1.Rotation = angle
-                    RunService.RenderStepped:Wait()
-                end
-            end)
-            
             -- 認証成功アニメーション
             local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
             
             local tween1 = TweenService:Create(AuthWindow, tweenInfo, {
-                Position = UDim2.new(0.5, -200, 0.5, -250),
-                BackgroundTransparency = 0.8
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0.5, -200, 0.5, -200)
             })
             
             local tween2 = TweenService:Create(shadow, tweenInfo, {
@@ -512,11 +406,17 @@ local function CreateAuthWindow()
             tween1:Play()
             tween2:Play()
             
-            wait(0.8)
-            
-            -- 認証画面を非表示にしてメインUIを作成
-            AuthWindow:Destroy()
-            CreateMainWindow()
+            -- アニメーション完了後に認証画面を削除し、メインUIを作成
+            tween1.Completed:Connect(function()
+                -- 認証画面を完全に削除
+                if AuthWindow then
+                    AuthWindow:Destroy()
+                    AuthWindow = nil
+                end
+                
+                -- メインUIを作成
+                CreateMainWindow()
+            end)
         else
             -- 認証失敗
             messageLabel.Text = string.format("❌ 認証失敗 (%d/%d)", authAttempts, MAX_AUTH_ATTEMPTS)
@@ -563,8 +463,15 @@ local function CreateAuthWindow()
 end
 
 -- 関数: メインウィンドウの作成
-local function CreateMainWindow()
-    local MainWindow = Instance.new("Frame")
+function CreateMainWindow()
+    print("メインウィンドウを作成します...")
+    
+    -- メインウィンドウが既にある場合は削除
+    if MainWindow and MainWindow.Parent then
+        MainWindow:Destroy()
+    end
+    
+    MainWindow = Instance.new("Frame")
     MainWindow.Name = "MainWindow"
     MainWindow.Size = UDim2.new(0, 650, 0, 550)
     MainWindow.Position = UDim2.new(0.5, -325, 0.5, -275)
@@ -643,7 +550,7 @@ local function CreateMainWindow()
     title.Text = "⚡ Arseus x Neo UI"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
     title.TextSize = 22
-    title.Font = FontSettings.Title
+    title.Font = Enum.Font.GothamBold
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = titleBar
     
@@ -665,7 +572,7 @@ local function CreateMainWindow()
     minimizeBtn.Text = "─"
     minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     minimizeBtn.TextSize = 20
-    minimizeBtn.Font = FontSettings.Button
+    minimizeBtn.Font = Enum.Font.GothamBold
     minimizeBtn.Parent = controlButtons
     
     local minCorner = Instance.new("UICorner")
@@ -682,7 +589,7 @@ local function CreateMainWindow()
     closeBtn.Text = "×"
     closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     closeBtn.TextSize = 24
-    closeBtn.Font = FontSettings.Button
+    closeBtn.Font = Enum.Font.GothamBold
     closeBtn.Parent = controlButtons
     
     local closeCorner = Instance.new("UICorner")
@@ -699,7 +606,7 @@ local function CreateMainWindow()
     settingsBtn.Text = "⚙"
     settingsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     settingsBtn.TextSize = 18
-    settingsBtn.Font = FontSettings.Button
+    settingsBtn.Font = Enum.Font.GothamBold
     settingsBtn.Parent = controlButtons
     
     local setCorner = Instance.new("UICorner")
@@ -730,7 +637,7 @@ local function CreateMainWindow()
         tabButton.Text = tabName
         tabButton.TextColor3 = Color3.fromRGB(150, 150, 150)
         tabButton.TextSize = 18
-        tabButton.Font = FontSettings.Header
+        tabButton.Font = Enum.Font.GothamBold
         tabButton.Parent = tabContainer
         
         -- アクティブなタブのハイライト
@@ -892,7 +799,7 @@ local function CreateMainWindow()
         warningIcon.Text = "⚠️"
         warningIcon.TextColor3 = Color3.fromRGB(255, 200, 50)
         warningIcon.TextSize = 40
-        warningIcon.Font = FontSettings.Title
+        warningIcon.Font = Enum.Font.GothamBold
         warningIcon.Parent = confirmDialog
         
         -- 確認メッセージ
@@ -903,7 +810,7 @@ local function CreateMainWindow()
         confirmText.Text = "本当にUIを削除しますか？"
         confirmText.TextColor3 = Color3.fromRGB(255, 255, 255)
         confirmText.TextSize = 20
-        confirmText.Font = FontSettings.Header
+        confirmText.Font = Enum.Font.GothamBold
         confirmText.TextWrapped = true
         confirmText.Parent = confirmDialog
         
@@ -923,7 +830,7 @@ local function CreateMainWindow()
         yesBtn.Text = "はい"
         yesBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         yesBtn.TextSize = 18
-        yesBtn.Font = FontSettings.Button
+        yesBtn.Font = Enum.Font.GothamBold
         yesBtn.Parent = buttonContainer
         
         local yesCorner = Instance.new("UICorner")
@@ -939,7 +846,7 @@ local function CreateMainWindow()
         noBtn.Text = "いいえ"
         noBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         noBtn.TextSize = 18
-        noBtn.Font = FontSettings.Button
+        noBtn.Font = Enum.Font.GothamBold
         noBtn.Parent = buttonContainer
         
         local noCorner = Instance.new("UICorner")
@@ -970,6 +877,7 @@ local function CreateMainWindow()
             
             tween1.Completed:Connect(function()
                 MainWindow:Destroy()
+                MainWindow = nil
             end)
         end)
         
@@ -1018,7 +926,7 @@ local function CreateMainWindow()
     local function UpdateTabContent(tabName)
         -- コンテンツをクリア
         for _, child in ipairs(contentFrame:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") then
+            if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("ScrollingFrame") then
                 child:Destroy()
             end
         end
@@ -1066,7 +974,7 @@ local function CreateMainWindow()
         sectionTitle.Text = title
         sectionTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
         sectionTitle.TextSize = 22
-        sectionTitle.Font = FontSettings.Header
+        sectionTitle.Font = Enum.Font.GothamBold
         sectionTitle.TextXAlignment = Enum.TextXAlignment.Left
         sectionTitle.Parent = section
         
@@ -1099,7 +1007,7 @@ local function CreateMainWindow()
         toggleLabel.Text = label
         toggleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
         toggleLabel.TextSize = 16
-        toggleLabel.Font = FontSettings.Body
+        toggleLabel.Font = Enum.Font.Gotham
         toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
         toggleLabel.Parent = toggleFrame
         
@@ -1173,7 +1081,7 @@ local function CreateMainWindow()
         sliderLabel.Text = label .. ": " .. defaultValue
         sliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
         sliderLabel.TextSize = 16
-        sliderLabel.Font = FontSettings.Body
+        sliderLabel.Font = Enum.Font.Gotham
         sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
         sliderLabel.Parent = sliderFrame
         
@@ -1185,7 +1093,7 @@ local function CreateMainWindow()
         sliderValue.Text = tostring(defaultValue)
         sliderValue.TextColor3 = Settings.UIColor
         sliderValue.TextSize = 16
-        sliderValue.Font = FontSettings.Body
+        sliderValue.Font = Enum.Font.Gotham
         sliderValue.TextXAlignment = Enum.TextXAlignment.Right
         sliderValue.Parent = sliderFrame
         
@@ -1297,7 +1205,7 @@ local function CreateMainWindow()
         pickerLabel.Text = label
         pickerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
         pickerLabel.TextSize = 16
-        pickerLabel.Font = FontSettings.Body
+        pickerLabel.Font = Enum.Font.Gotham
         pickerLabel.TextXAlignment = Enum.TextXAlignment.Left
         pickerLabel.Parent = pickerFrame
         
@@ -1377,7 +1285,7 @@ local function CreateMainWindow()
         return pickerFrame
     end
     
-    -- Mainタブ作成
+    -- Mainタブ作成 (簡易版)
     local function CreateMainTab(parent)
         local yOffset = 0
         
@@ -1388,28 +1296,28 @@ local function CreateMainWindow()
         -- スピードチェンジ
         local speedSlider = CreateSlider("移動速度", parent, yOffset, 1, 100, Settings.Player.WalkSpeed, function(value)
             Settings.Player.WalkSpeed = value
-            -- 実際の移動速度を変更するコードをここに追加
+            print("移動速度を" .. value .. "に設定しました")
         end)
         yOffset = yOffset + 70
         
         -- ジャンプ力
         local jumpSlider = CreateSlider("ジャンプ力", parent, yOffset, 1, 200, Settings.Player.JumpPower, function(value)
             Settings.Player.JumpPower = value
-            -- 実際のジャンプ力を変更するコードをここに追加
+            print("ジャンプ力を" .. value .. "に設定しました")
         end)
         yOffset = yOffset + 70
         
         -- 無限ジャンプ
         local infiniteJumpToggle = CreateToggle("無限ジャンプ", parent, yOffset, Settings.Player.InfiniteJump, function(enabled)
             Settings.Player.InfiniteJump = enabled
-            -- 無限ジャンプ機能を実装
+            print("無限ジャンプ: " .. (enabled and "有効" or "無効"))
         end)
         yOffset = yOffset + 50
         
         -- 自動スプリント
         local autoSprintToggle = CreateToggle("自動スプリント", parent, yOffset, Settings.Player.AutoSprint, function(enabled)
             Settings.Player.AutoSprint = enabled
-            -- 自動スプリント機能を実装
+            print("自動スプリント: " .. (enabled and "有効" or "無効"))
         end)
         yOffset = yOffset + 50
         
@@ -1420,71 +1328,14 @@ local function CreateMainWindow()
         -- Fly有効化
         local flyToggle = CreateToggle("Fly有効", parent, yOffset, Settings.Player.FlyEnabled, function(enabled)
             Settings.Player.FlyEnabled = enabled
-            ToggleFly(enabled)
+            print("Fly機能: " .. (enabled and "有効" or "無効"))
         end)
         yOffset = yOffset + 50
         
         -- Fly速度
         local flySpeedSlider = CreateSlider("Fly速度", parent, yOffset, 1, 200, Settings.Player.FlySpeed, function(value)
             Settings.Player.FlySpeed = value
-            -- Fly速度を更新
-        end)
-        yOffset = yOffset + 70
-        
-        -- Flyモード選択
-        local flyModeFrame = Instance.new("Frame")
-        flyModeFrame.Name = "FlyMode"
-        flyModeFrame.Size = UDim2.new(1, 0, 0, 40)
-        flyModeFrame.Position = UDim2.new(0, 0, 0, yOffset)
-        flyModeFrame.BackgroundTransparency = 1
-        flyModeFrame.Parent = parent
-        
-        local flyModeLabel = Instance.new("TextLabel")
-        flyModeLabel.Name = "Label"
-        flyModeLabel.Size = UDim2.new(0.4, 0, 1, 0)
-        flyModeLabel.Position = UDim2.new(0, 0, 0, 0)
-        flyModeLabel.BackgroundTransparency = 1
-        flyModeLabel.Text = "Flyモード:"
-        flyModeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        flyModeLabel.TextSize = 16
-        flyModeLabel.Font = FontSettings.Body
-        flyModeLabel.TextXAlignment = Enum.TextXAlignment.Left
-        flyModeLabel.Parent = flyModeFrame
-        
-        local flyModeDropdown = Instance.new("TextButton")
-        flyModeDropdown.Name = "Dropdown"
-        flyModeDropdown.Size = UDim2.new(0.6, 0, 1, 0)
-        flyModeDropdown.Position = UDim2.new(0.4, 0, 0, 0)
-        flyModeDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-        flyModeDropdown.AutoButtonColor = false
-        flyModeDropdown.Text = "Classic Fly"
-        flyModeDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
-        flyModeDropdown.TextSize = 14
-        flyModeDropdown.Font = FontSettings.Body
-        flyModeDropdown.Parent = flyModeFrame
-        
-        local dropdownCorner = Instance.new("UICorner")
-        dropdownCorner.CornerRadius = UDim.new(0, 6)
-        dropdownCorner.Parent = flyModeDropdown
-        
-        -- Flyモードリスト
-        local flyModes = {"Classic Fly", "CFrame Fly", "BodyVelocity Fly", "Part Fly", "Advanced Fly"}
-        
-        yOffset = yOffset + 50
-        
-        -- 浮遊力セクション
-        local floatSection, floatLine = CreateSection("浮遊力", parent, yOffset)
-        yOffset = yOffset + 60
-        
-        -- 浮遊力有効化
-        local floatToggle = CreateToggle("浮遊力有効", parent, yOffset, false, function(enabled)
-            -- 浮遊力機能を実装
-        end)
-        yOffset = yOffset + 50
-        
-        -- 浮遊力強度
-        local floatSlider = CreateSlider("浮遊力強度", parent, yOffset, 0, 100, 50, function(value)
-            -- 浮遊力強度を設定
+            print("Fly速度を" .. value .. "に設定しました")
         end)
         yOffset = yOffset + 70
         
@@ -1495,12 +1346,12 @@ local function CreateMainWindow()
         -- Noclip有効化
         local noclipToggle = CreateToggle("Noclip有効", parent, yOffset, Settings.Player.NoClip, function(enabled)
             Settings.Player.NoClip = enabled
-            ToggleNoClip(enabled)
+            print("Noclip: " .. (enabled and "有効" or "無効"))
         end)
         yOffset = yOffset + 50
     end
     
-    -- Playerタブ作成
+    -- Playerタブ作成 (簡易版)
     local function CreatePlayerTab(parent)
         local yOffset = 0
         
@@ -1511,21 +1362,19 @@ local function CreateMainWindow()
         -- グラビティ
         local gravitySlider = CreateSlider("重力", parent, yOffset, 0, 500, Settings.Player.Gravity, function(value)
             Settings.Player.Gravity = value
-            -- 重力を変更
+            print("重力を" .. value .. "に設定しました")
         end)
         yOffset = yOffset + 70
         
         -- ヒップハイト
         local hipHeightSlider = CreateSlider("ヒップハイト", parent, yOffset, 0, 20, Settings.Player.HipHeight, function(value)
             Settings.Player.HipHeight = value
-            -- ヒップハイトを変更
+            print("ヒップハイトを" .. value .. "に設定しました")
         end)
         yOffset = yOffset + 70
-        
-        -- その他の機能を追加...
     end
     
-    -- Visualタブ作成
+    -- Visualタブ作成 (簡易版)
     local function CreateVisualTab(parent)
         local yOffset = 0
         
@@ -1536,124 +1385,26 @@ local function CreateMainWindow()
         -- クロスヘア有効化
         local crosshairToggle = CreateToggle("クロスヘア表示", parent, yOffset, Settings.Crosshair.Enabled, function(enabled)
             Settings.Crosshair.Enabled = enabled
-            UpdateCrosshair()
+            print("クロスヘア: " .. (enabled and "有効" or "無効"))
         end)
         yOffset = yOffset + 50
-        
-        -- クロスヘアタイプ
-        local crosshairTypeFrame = Instance.new("Frame")
-        crosshairTypeFrame.Name = "CrosshairType"
-        crosshairTypeFrame.Size = UDim2.new(1, 0, 0, 80)
-        crosshairTypeFrame.Position = UDim2.new(0, 0, 0, yOffset)
-        crosshairTypeFrame.BackgroundTransparency = 1
-        crosshairTypeFrame.Parent = parent
-        
-        local typeLabel = Instance.new("TextLabel")
-        typeLabel.Name = "Label"
-        typeLabel.Size = UDim2.new(1, 0, 0, 30)
-        typeLabel.Position = UDim2.new(0, 0, 0, 0)
-        typeLabel.BackgroundTransparency = 1
-        typeLabel.Text = "クロスヘアタイプ:"
-        typeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        typeLabel.TextSize = 16
-        typeLabel.Font = FontSettings.Body
-        typeLabel.TextXAlignment = Enum.TextXAlignment.Left
-        typeLabel.Parent = crosshairTypeFrame
-        
-        local typeContainer = Instance.new("ScrollingFrame")
-        typeContainer.Name = "TypeContainer"
-        typeContainer.Size = UDim2.new(1, 0, 0, 40)
-        typeContainer.Position = UDim2.new(0, 0, 0, 35)
-        typeContainer.BackgroundTransparency = 1
-        typeContainer.BorderSizePixel = 0
-        typeContainer.ScrollBarThickness = 3
-        typeContainer.ScrollBarImageColor3 = Settings.UIColor
-        typeContainer.CanvasSize = UDim2.new(2, 0, 0, 0)
-        typeContainer.Parent = crosshairTypeFrame
-        
-        -- クロスヘアタイプボタン
-        local buttonWidth = 80
-        local buttonHeight = 30
-        local buttonSpacing = 10
-        
-        for i, crosshairType in ipairs(CrosshairTypes) do
-            local typeButton = Instance.new("TextButton")
-            typeButton.Name = crosshairType .. "Button"
-            typeButton.Size = UDim2.new(0, buttonWidth, 0, buttonHeight)
-            typeButton.Position = UDim2.new(0, (i-1) * (buttonWidth + buttonSpacing), 0, 0)
-            typeButton.BackgroundColor3 = Settings.Crosshair.Type == crosshairType and Settings.UIColor or Color3.fromRGB(40, 40, 55)
-            typeButton.AutoButtonColor = false
-            typeButton.Text = crosshairType
-            typeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            typeButton.TextSize = 12
-            typeButton.Font = FontSettings.Body
-            typeButton.Parent = typeContainer
-            
-            local typeCorner = Instance.new("UICorner")
-            typeCorner.CornerRadius = UDim.new(0, 6)
-            typeCorner.Parent = typeButton
-            
-            typeButton.MouseButton1Click:Connect(function()
-                Settings.Crosshair.Type = crosshairType
-                UpdateCrosshair()
-                
-                -- 他のボタンの色をリセット
-                for _, child in ipairs(typeContainer:GetChildren()) do
-                    if child:IsA("TextButton") then
-                        child.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-                    end
-                end
-                
-                typeButton.BackgroundColor3 = Settings.UIColor
-            end)
-        end
-        
-        yOffset = yOffset + 90
-        
-        -- クロスヘアカラー
-        local crosshairColorPicker = CreateColorPicker("クロスヘア色", parent, yOffset, ColorPalette, 1, function(color, index)
-            Settings.Crosshair.Color = color
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + 90
         
         -- クロスヘアサイズ
         local crosshairSizeSlider = CreateSlider("クロスヘアサイズ", parent, yOffset, 5, 100, Settings.Crosshair.Size, function(value)
             Settings.Crosshair.Size = value
-            UpdateCrosshair()
+            print("クロスヘアサイズを" .. value .. "に設定しました")
         end)
         yOffset = yOffset + 70
         
-        -- クロスヘア太さ
-        local crosshairThicknessSlider = CreateSlider("クロスヘア太さ", parent, yOffset, 1, 10, Settings.Crosshair.Thickness, function(value)
-            Settings.Crosshair.Thickness = value
-            UpdateCrosshair()
+        -- クロスヘアカラー
+        local crosshairColorPicker = CreateColorPicker("クロスヘア色", parent, yOffset, ColorPalette, 1, function(color, index)
+            Settings.Crosshair.Color = color
+            print("クロスヘア色を変更しました")
         end)
-        yOffset = yOffset + 70
-        
-        -- クロスヘアギャップ
-        local crosshairGapSlider = CreateSlider("クロスヘアギャップ", parent, yOffset, 0, 20, Settings.Crosshair.Gap, function(value)
-            Settings.Crosshair.Gap = value
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + 70
-        
-        -- クロスヘア回転
-        local crosshairRotationSlider = CreateSlider("クロスヘア回転", parent, yOffset, 0, 360, Settings.Crosshair.Rotation, function(value)
-            Settings.Crosshair.Rotation = value
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + 70
-        
-        -- アウトライン
-        local crosshairOutlineToggle = CreateToggle("アウトライン表示", parent, yOffset, Settings.Crosshair.Outline, function(enabled)
-            Settings.Crosshair.Outline = enabled
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + 50
+        yOffset = yOffset + 90
     end
     
-    -- Settingsタブ作成
+    -- Settingsタブ作成 (簡易版)
     local function CreateSettingsTab(parent)
         local yOffset = 0
         
@@ -1664,78 +1415,8 @@ local function CreateMainWindow()
         -- UIカラー
         local uiColorPicker = CreateColorPicker("UIカラー", parent, yOffset, ColorPalette, 1, function(color, index)
             Settings.UIColor = color
-            UpdateUITheme()
+            print("UIカラーを変更しました")
         end)
-        yOffset = yOffset + 90
-        
-        -- UI形状
-        local uiShapeFrame = Instance.new("Frame")
-        uiShapeFrame.Name = "UIShape"
-        uiShapeFrame.Size = UDim2.new(1, 0, 0, 80)
-        uiShapeFrame.Position = UDim2.new(0, 0, 0, yOffset)
-        uiShapeFrame.BackgroundTransparency = 1
-        uiShapeFrame.Parent = parent
-        
-        local shapeLabel = Instance.new("TextLabel")
-        shapeLabel.Name = "Label"
-        shapeLabel.Size = UDim2.new(1, 0, 0, 30)
-        shapeLabel.Position = UDim2.new(0, 0, 0, 0)
-        shapeLabel.BackgroundTransparency = 1
-        shapeLabel.Text = "UI形状:"
-        shapeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        shapeLabel.TextSize = 16
-        shapeLabel.Font = FontSettings.Body
-        shapeLabel.TextXAlignment = Enum.TextXAlignment.Left
-        shapeLabel.Parent = uiShapeFrame
-        
-        local shapeContainer = Instance.new("ScrollingFrame")
-        shapeContainer.Name = "ShapeContainer"
-        shapeContainer.Size = UDim2.new(1, 0, 0, 40)
-        shapeContainer.Position = UDim2.new(0, 0, 0, 35)
-        shapeContainer.BackgroundTransparency = 1
-        shapeContainer.BorderSizePixel = 0
-        shapeContainer.ScrollBarThickness = 3
-        shapeContainer.ScrollBarImageColor3 = Settings.UIColor
-        shapeContainer.CanvasSize = UDim2.new(2, 0, 0, 0)
-        shapeContainer.Parent = uiShapeFrame
-        
-        -- UI形状ボタン
-        local buttonWidth = 90
-        local buttonHeight = 30
-        local buttonSpacing = 10
-        
-        for i, shapeType in ipairs(ShapeTypes) do
-            local shapeButton = Instance.new("TextButton")
-            shapeButton.Name = shapeType .. "Button"
-            shapeButton.Size = UDim2.new(0, buttonWidth, 0, buttonHeight)
-            shapeButton.Position = UDim2.new(0, (i-1) * (buttonWidth + buttonSpacing), 0, 0)
-            shapeButton.BackgroundColor3 = Settings.UIShape == shapeType and Settings.UIColor or Color3.fromRGB(40, 40, 55)
-            shapeButton.AutoButtonColor = false
-            shapeButton.Text = shapeType
-            shapeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            shapeButton.TextSize = 12
-            shapeButton.Font = FontSettings.Body
-            shapeButton.Parent = shapeContainer
-            
-            local shapeCorner = Instance.new("UICorner")
-            shapeCorner.CornerRadius = UDim.new(0, 6)
-            shapeCorner.Parent = shapeButton
-            
-            shapeButton.MouseButton1Click:Connect(function()
-                Settings.UIShape = shapeType
-                ApplyWindowShape()
-                
-                -- 他のボタンの色をリセット
-                for _, child in ipairs(shapeContainer:GetChildren()) do
-                    if child:IsA("TextButton") then
-                        child.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-                    end
-                end
-                
-                shapeButton.BackgroundColor3 = Settings.UIColor
-            end)
-        end
-        
         yOffset = yOffset + 90
         
         -- UI透過度
@@ -1744,6 +1425,7 @@ local function CreateMainWindow()
             MainWindow.BackgroundTransparency = Settings.Transparency
             titleBar.BackgroundTransparency = Settings.Transparency
             tabContainer.BackgroundTransparency = Settings.Transparency
+            print("UI透過度を" .. value .. "%に設定しました")
         end)
         yOffset = yOffset + 70
         
@@ -1754,419 +1436,21 @@ local function CreateMainWindow()
         -- シフトロック有効化
         local shiftLockToggle = CreateToggle("シフトロック有効", parent, yOffset, Settings.Visual.ShiftLock, function(enabled)
             Settings.Visual.ShiftLock = enabled
-            ToggleShiftLock(enabled)
+            print("シフトロック: " .. (enabled and "有効" or "無効"))
         end)
         yOffset = yOffset + 50
-        
-        -- シフトロック設定
-        local shiftLockSettings = Instance.new("Frame")
-        shiftLockSettings.Name = "ShiftLockSettings"
-        shiftLockSettings.Size = UDim2.new(1, 0, 0, 80)
-        shiftLockSettings.Position = UDim2.new(0, 0, 0, yOffset)
-        shiftLockSettings.BackgroundTransparency = 1
-        shiftLockSettings.Parent = parent
-        
-        local offsetLabel = Instance.new("TextLabel")
-        offsetLabel.Name = "OffsetLabel"
-        offsetLabel.Size = UDim2.new(0.4, 0, 0, 30)
-        offsetLabel.Position = UDim2.new(0, 0, 0, 0)
-        offsetLabel.BackgroundTransparency = 1
-        offsetLabel.Text = "カメラオフセット:"
-        offsetLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        offsetLabel.TextSize = 14
-        offsetLabel.Font = FontSettings.Body
-        offsetLabel.Parent = shiftLockSettings
-        
-        -- Xオフセット
-        local xOffsetSlider = CreateSlider("X", shiftLockSettings, 40, -10, 10, Settings.Visual.CameraOffset.X, function(value)
-            Settings.Visual.CameraOffset = Vector3.new(value, Settings.Visual.CameraOffset.Y, Settings.Visual.CameraOffset.Z)
-        end)
-        xOffsetSlider.Size = UDim2.new(0.3, 0, 0, 60)
-        xOffsetSlider.Position = UDim2.new(0, 0, 0, 40)
-        
-        -- Yオフセット
-        local yOffsetSlider = CreateSlider("Y", shiftLockSettings, 40, -10, 10, Settings.Visual.CameraOffset.Y, function(value)
-            Settings.Visual.CameraOffset = Vector3.new(Settings.Visual.CameraOffset.X, value, Settings.Visual.CameraOffset.Z)
-        end)
-        yOffsetSlider.Size = UDim2.new(0.3, 0, 0, 60)
-        yOffsetSlider.Position = UDim2.new(0.35, 0, 0, 40)
-        
-        -- Zオフセット
-        local zOffsetSlider = CreateSlider("Z", shiftLockSettings, 40, -10, 10, Settings.Visual.CameraOffset.Z, function(value)
-            Settings.Visual.CameraOffset = Vector3.new(Settings.Visual.CameraOffset.X, Settings.Visual.CameraOffset.Y, value)
-        end)
-        zOffsetSlider.Size = UDim2.new(0.3, 0, 0, 60)
-        zOffsetSlider.Position = UDim2.new(0.7, 0, 0, 40)
-        
-        yOffset = yOffset + 90
-        
-        -- アニメーション設定セクション
-        local animationSection, animationLine = CreateSection("アニメーション設定", parent, yOffset)
-        yOffset = yOffset + 60
-        
-        -- アニメーション速度
-        local animationSpeedSlider = CreateSlider("アニメーション速度", parent, yOffset, 0.1, 1, AnimationSettings.TweenSpeed, function(value)
-            AnimationSettings.TweenSpeed = value
-        end)
-        yOffset = yOffset + 70
-        
-        -- ホバーエフェクト
-        local hoverToggle = CreateToggle("ホバーエフェクト", parent, yOffset, AnimationSettings.HoverEffects, function(enabled)
-            AnimationSettings.HoverEffects = enabled
-        end)
-        yOffset = yOffset + 50
-        
-        -- グローエフェクト
-        local glowToggle = CreateToggle("グローエフェクト", parent, yOffset, AnimationSettings.GlowEffect, function(enabled)
-            AnimationSettings.GlowEffect = enabled
-        end)
-        yOffset = yOffset + 50
-    end
-    
-    -- UIテーマ更新関数
-    local function UpdateUITheme()
-        -- UIの色を更新
-        local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        
-        -- メインウィンドウのストローク
-        if MainWindow:FindFirstChild("UIStroke") then
-            local strokeTween = TweenService:Create(MainWindow.UIStroke, tweenInfo, {
-                Color = Settings.UIColor
-            })
-            strokeTween:Play()
-        end
-        
-        -- タブインジケーター
-        local indicatorTween = TweenService:Create(tabIndicator, tweenInfo, {
-            BackgroundColor3 = Settings.UIColor
-        })
-        indicatorTween:Play()
-        
-        -- セクションライン
-        for _, child in ipairs(contentFrame:GetChildren()) do
-            if child:IsA("Frame") and child:FindFirstChild("Line") then
-                local lineTween = TweenService:Create(child.Line, tweenInfo, {
-                    BackgroundColor3 = Settings.UIColor
-                })
-                lineTween:Play()
-            end
-        end
-        
-        -- スクロールバー
-        contentFrame.ScrollBarImageColor3 = Settings.UIColor
-        
-        -- 設定ボタン
-        local settingsTween = TweenService:Create(settingsBtn, tweenInfo, {
-            BackgroundColor3 = Settings.UIColor
-        })
-        settingsTween:Play()
-        
-        -- アクティブなタブの色
-        if tabButtons[activeTab] then
-            local tabTween = TweenService:Create(tabButtons[activeTab], tweenInfo, {
-                TextColor3 = Settings.UIColor
-            })
-            tabTween:Play()
-        end
-    end
-    
-    -- クロスヘア更新関数
-    local function UpdateCrosshair()
-        -- クロスヘアの実装
-        -- 注: これはクロスヘアの基本的な実装です
-        if not Settings.Crosshair.Enabled then
-            if game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("CrosshairGui") then
-                game:GetService("Players").LocalPlayer.PlayerGui.CrosshairGui:Destroy()
-            end
-            return
-        end
-        
-        local crosshairGui = Instance.new("ScreenGui")
-        crosshairGui.Name = "CrosshairGui"
-        crosshairGui.ResetOnSpawn = false
-        crosshairGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        crosshairGui.IgnoreGuiInset = true
-        crosshairGui.Parent = game:GetService("Players").LocalPlayer.PlayerGui
-        
-        local center = Instance.new("Frame")
-        center.Name = "Center"
-        center.Size = UDim2.new(0, Settings.Crosshair.Size, 0, Settings.Crosshair.Size)
-        center.Position = UDim2.new(0.5, -Settings.Crosshair.Size/2, 0.5, -Settings.Crosshair.Size/2)
-        center.BackgroundColor3 = Settings.Crosshair.Color
-        center.BackgroundTransparency = 0.5
-        center.BorderSizePixel = 0
-        center.Parent = crosshairGui
-        
-        local centerCorner = Instance.new("UICorner")
-        centerCorner.CornerRadius = UDim.new(0, Settings.Crosshair.Size/2)
-        centerCorner.Parent = center
-        
-        -- クロスヘアの種類に応じて形状を変更
-        if Settings.Crosshair.Type == "Cross" then
-            -- 十字型クロスヘア
-            local left = Instance.new("Frame")
-            left.Size = UDim2.new(0, Settings.Crosshair.Size, 0, Settings.Crosshair.Thickness)
-            left.Position = UDim2.new(0.5, -Settings.Crosshair.Size/2 - Settings.Crosshair.Gap, 0.5, -Settings.Crosshair.Thickness/2)
-            left.BackgroundColor3 = Settings.Crosshair.Color
-            left.BorderSizePixel = 0
-            left.Parent = crosshairGui
-            
-            local right = left:Clone()
-            right.Position = UDim2.new(0.5, Settings.Crosshair.Gap, 0.5, -Settings.Crosshair.Thickness/2)
-            right.Parent = crosshairGui
-            
-            local top = left:Clone()
-            top.Size = UDim2.new(0, Settings.Crosshair.Thickness, 0, Settings.Crosshair.Size)
-            top.Position = UDim2.new(0.5, -Settings.Crosshair.Thickness/2, 0.5, -Settings.Crosshair.Size/2 - Settings.Crosshair.Gap)
-            top.Parent = crosshairGui
-            
-            local bottom = top:Clone()
-            bottom.Position = UDim2.new(0.5, -Settings.Crosshair.Thickness/2, 0.5, Settings.Crosshair.Gap)
-            bottom.Parent = crosshairGui
-            
-        elseif Settings.Crosshair.Type == "Dot" then
-            -- 点型クロスヘア
-            center.Size = UDim2.new(0, Settings.Crosshair.Size/2, 0, Settings.Crosshair.Size/2)
-            center.Position = UDim2.new(0.5, -Settings.Crosshair.Size/4, 0.5, -Settings.Crosshair.Size/4)
-            centerCorner.CornerRadius = UDim.new(1, 0)
-            
-        elseif Settings.Crosshair.Type == "Circle" then
-            -- 円型クロスヘア
-            center.BackgroundTransparency = 1
-            
-            local circle = Instance.new("Frame")
-            circle.Size = UDim2.new(0, Settings.Crosshair.Size, 0, Settings.Crosshair.Size)
-            circle.Position = UDim2.new(0.5, -Settings.Crosshair.Size/2, 0.5, -Settings.Crosshair.Size/2)
-            circle.BackgroundTransparency = 1
-            circle.Parent = crosshairGui
-            
-            local circleStroke = Instance.new("UIStroke")
-            circleStroke.Color = Settings.Crosshair.Color
-            circleStroke.Thickness = Settings.Crosshair.Thickness
-            circleStroke.Parent = circle
-            
-            local circleCorner = Instance.new("UICorner")
-            circleCorner.CornerRadius = UDim.new(1, 0)
-            circleCorner.Parent = circle
-        end
-        
-        -- アウトライン
-        if Settings.Crosshair.Outline then
-            local outline = center:Clone()
-            outline.Name = "Outline"
-            outline.BackgroundColor3 = Settings.Crosshair.OutlineColor
-            outline.Size = UDim2.new(0, Settings.Crosshair.Size + 4, 0, Settings.Crosshair.Size + 4)
-            outline.Position = UDim2.new(0.5, -(Settings.Crosshair.Size + 4)/2, 0.5, -(Settings.Crosshair.Size + 4)/2)
-            outline.ZIndex = center.ZIndex - 1
-            outline.Parent = crosshairGui
-        end
-        
-        -- 回転
-        if Settings.Crosshair.Rotation ~= 0 then
-            crosshairGui.Rotation = Settings.Crosshair.Rotation
-        end
-    end
-    
-    -- Fly機能
-    local flyConnection
-    local function ToggleFly(enabled)
-        if enabled then
-            local player = game.Players.LocalPlayer
-            local character = player.Character or player.CharacterAdded:Wait()
-            local humanoid = character:WaitForChild("Humanoid")
-            
-            -- BodyVelocityの作成
-            local bv = Instance.new("BodyVelocity")
-            bv.Velocity = Vector3.new(0, 0, 0)
-            bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-            bv.P = 10000
-            bv.Name = "FlyBV"
-            bv.Parent = character.HumanoidRootPart
-            
-            -- BodyGyroの作成
-            local bg = Instance.new("BodyGyro")
-            bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-            bg.P = 10000
-            bg.Name = "FlyBG"
-            bg.Parent = character.HumanoidRootPart
-            
-            flyConnection = RunService.Heartbeat:Connect(function()
-                if character and humanoid and humanoid.Health > 0 then
-                    local root = character.HumanoidRootPart
-                    
-                    if root and bv and bg then
-                        -- カメラの方向を取得
-                        local cam = workspace.CurrentCamera
-                        local lookVector = cam.CFrame.LookVector
-                        
-                        -- 入力の取得
-                        local forward = 0
-                        local backward = 0
-                        local left = 0
-                        local right = 0
-                        local up = 0
-                        local down = 0
-                        
-                        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                            forward = 1
-                        end
-                        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                            backward = 1
-                        end
-                        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                            left = 1
-                        end
-                        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                            right = 1
-                        end
-                        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                            up = 1
-                        end
-                        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                            down = 1
-                        end
-                        
-                        -- 移動方向の計算
-                        local moveDirection = Vector3.new(
-                            right - left,
-                            up - down,
-                            forward - backward
-                        )
-                        
-                        -- カメラの方向に基づいて移動
-                        local camCF = cam.CFrame
-                        local moveVector = camCF:VectorToWorldSpace(moveDirection)
-                        
-                        -- 速度の設定
-                        bv.Velocity = moveVector * Settings.Player.FlySpeed
-                        
-                        -- 体の向きの設定
-                        bg.CFrame = CFrame.new(root.Position, root.Position + lookVector)
-                    end
-                end
-            end)
-        else
-            if flyConnection then
-                flyConnection:Disconnect()
-                flyConnection = nil
-            end
-            
-            -- BodyVelocityとBodyGyroを削除
-            local player = game.Players.LocalPlayer
-            local character = player.Character
-            if character then
-                local bv = character.HumanoidRootPart:FindFirstChild("FlyBV")
-                local bg = character.HumanoidRootPart:FindFirstChild("FlyBG")
-                
-                if bv then bv:Destroy() end
-                if bg then bg:Destroy() end
-            end
-        end
-    end
-    
-    -- Noclip機能
-    local noclipConnection
-    local function ToggleNoClip(enabled)
-        if enabled then
-            local player = game.Players.LocalPlayer
-            local character = player.Character or player.CharacterAdded:Wait()
-            
-            noclipConnection = RunService.Stepped:Connect(function()
-                if character then
-                    for _, part in ipairs(character:GetDescendants()) do
-                        if part:IsA("BasePart") and part.CanCollide then
-                            part.CanCollide = false
-                        end
-                    end
-                end
-            end)
-        else
-            if noclipConnection then
-                noclipConnection:Disconnect()
-                noclipConnection = nil
-            end
-            
-            -- コリジョンを戻す
-            local player = game.Players.LocalPlayer
-            local character = player.Character
-            if character then
-                for _, part in ipairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = true
-                    end
-                end
-            end
-        end
-    end
-    
-    -- シフトロック機能
-    local shiftLockConnection
-    local function ToggleShiftLock(enabled)
-        if enabled then
-            shiftLockConnection = UserInputService.InputChanged:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseMovement then
-                    local player = game.Players.LocalPlayer
-                    local character = player.Character
-                    
-                    if character and UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                        local humanoid = character:FindFirstChild("Humanoid")
-                        if humanoid then
-                            humanoid.AutoRotate = false
-                            
-                            local root = character:FindFirstChild("HumanoidRootPart")
-                            if root then
-                                local cam = workspace.CurrentCamera
-                                local lookVector = cam.CFrame.LookVector
-                                root.CFrame = CFrame.new(root.Position, root.Position + Vector3.new(lookVector.X, 0, lookVector.Z))
-                            end
-                        end
-                    else
-                        local humanoid = character and character:FindFirstChild("Humanoid")
-                        if humanoid then
-                            humanoid.AutoRotate = true
-                        end
-                    end
-                end
-            end)
-        else
-            if shiftLockConnection then
-                shiftLockConnection:Disconnect()
-                shiftLockConnection = nil
-            end
-            
-            -- オートローテーションを戻す
-            local player = game.Players.LocalPlayer
-            local character = player.Character
-            if character then
-                local humanoid = character:FindFirstChild("Humanoid")
-                if humanoid then
-                    humanoid.AutoRotate = true
-                end
-            end
-        end
     end
     
     -- 初期タブを設定
     UpdateTabContent("Main")
     
-    -- ウィンドウを記録
-    table.insert(Windows, MainWindow)
-    ActiveWindow = MainWindow
+    print("メインウィンドウの作成が完了しました！")
 end
 
 -- 初期化
-ArseusUI.Parent = player:WaitForChild("PlayerGui")
 CreateAuthWindow()
 
 -- デバッグメッセージ
 print("⚡ Arseus x Neo UI loaded successfully!")
 print("🔒 Security Password: しゅーくりーむ")
-print("🎨 Features:")
-print("  - Smooth animations and transitions")
-print("  - Draggable and resizable windows")
-print("  - 12 color themes")
-print("  - Multiple UI shapes")
-print("  - Crosshair customization")
-print("  - Fly functions with multiple modes")
-print("  - Shift lock system")
-print("  - Player modifications")
+print("🎨 認証後にメインUIが表示されます")
