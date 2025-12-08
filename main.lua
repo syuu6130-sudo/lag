@@ -1,402 +1,340 @@
---!strict
--- Key System UI for Roblox (Modified Version)
+-- Key System with Crosshair UI
+-- Roblox Executer Version
 
--- サービス取得
+-- サービスを取得
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
 
 -- プレイヤーを取得
 local player = Players.LocalPlayer
-if not player then return end -- LocalPlayerが存在しない場合は実行しない
 local playerGui = player:WaitForChild("PlayerGui")
 
--- 外部通信用
--- NOTE: サーバーと通信するためのRemoteEventが必要です。
--- ReplicatedStorageに "KeySystemEvent" というRemoteEventを作成してください。
-local keySystemEvent = ReplicatedStorage:WaitForChild("KeySystemEvent")
+-- UIを作成
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "KeySystemUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
 
--- /////////////////////////////////////////////////////////////
--- /// 設定 (クライアント側ではキー自体は保持しません) ///
--- /////////////////////////////////////////////////////////////
-local UI_CONFIG = {
-	FrameSize = UDim2.new(0, 400, 0, 400), -- 高さを少し増やしてレイアウトに余裕を持たせる
-	Padding = UDim.new(0, 20), -- パディング用
-	InputHeight = 45,
-	ButtonHeight = 50,
-	TitleText = "🔑 認証システム v2.0",
-	SuccessText = "認証成功！\nゲームを開始してください。",
-	AdminSuccessText = "管理者権限で認証成功！\nすべての機能が利用可能です。",
-	IconAssetId = "rbxassetid://3926305904",
-	IconRectOffset = Vector2.new(964, 324), -- 鍵アイコン
-	SuccessIconRectOffset = Vector2.new(964, 204), -- チェックマークアイコン
-}
--- /////////////////////////////////////////////////////////////
+-- キー入力UI
+local keyFrame = Instance.new("Frame")
+keyFrame.Name = "KeyFrame"
+keyFrame.Size = UDim2.new(0, 350, 0, 250)
+keyFrame.Position = UDim2.new(0.5, -175, 0.5, -125)
+keyFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+keyFrame.BorderSizePixel = 0
+keyFrame.BackgroundTransparency = 0.1
+keyFrame.Parent = screenGui
 
--- GUIを作成する関数
-local function createKeySystemGUI()
-	-- ScreenGuiを作成
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "KeySystemGUI"
-	screenGui.ResetOnSpawn = false
-	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screenGui.Parent = playerGui
-	
-	-- メインフレーム
-	local mainFrame = Instance.new("Frame")
-	mainFrame.Name = "MainFrame"
-	mainFrame.Size = UI_CONFIG.FrameSize
-	mainFrame.Position = UDim2.new(0.5, -UI_CONFIG.FrameSize.X.Offset / 2, 0.5, -UI_CONFIG.FrameSize.Y.Offset / 2)
-	mainFrame.AnchorPoint = Vector2.new(0.5, 0.5) -- アンカーポイントを中央に変更
-	mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-	mainFrame.BorderSizePixel = 0
-	mainFrame.ClipsDescendants = true
-	mainFrame.Parent = screenGui
-	
-	-- 角丸にする
-	local uiCorner = Instance.new("UICorner")
-	uiCorner.CornerRadius = UDim.new(0, 12)
-	uiCorner.Parent = mainFrame
-	
-	-- UListLayout: 子要素を垂直に自動配置
-	local listLayout = Instance.new("UIListLayout")
-	listLayout.Name = "ContentLayout"
-	listLayout.FillDirection = Enum.FillDirection.Vertical
-	listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	listLayout.VerticalAlignment = Enum.VerticalAlignment.Top
-	listLayout.Padding = UDim.new(0, 15)
-	listLayout.Parent = mainFrame
-	
-	-- UIPadding: フレーム全体にパディング
-	local uiPadding = Instance.new("UIPadding")
-	uiPadding.PaddingTop = UDim.new(0, 50) -- TopBarの高さ分+α
-	uiPadding.PaddingBottom = UI_CONFIG.Padding
-	uiPadding.PaddingLeft = UI_CONFIG.Padding
-	uiPadding.PaddingRight = UI_CONFIG.Padding
-	uiPadding.Parent = mainFrame
-	
-	-- TopBarとTitleの再配置 (TopBarはLayoutの外に配置)
-	local topBar = Instance.new("Frame")
-	topBar.Name = "TopBar"
-	topBar.Size = UDim2.new(1, 0, 0, 40)
-	topBar.Position = UDim2.new(0, 0, 0, 0)
-	topBar.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-	topBar.BorderSizePixel = 0
-	topBar.Parent = mainFrame
-	
-	local topBarCorner = Instance.new("UICorner")
-	topBarCorner.CornerRadius = UDim.new(0, 12, 0, 0)
-	topBarCorner.Parent = topBar
-	
-	local title = Instance.new("TextLabel")
-	title.Name = "Title"
-	title.Size = UDim2.new(1, -70, 1, 0) -- 閉じるボタンのスペースを確保
-	title.Position = UDim2.new(0, 35, 0, 0)
-	title.BackgroundTransparency = 1
-	title.Text = UI_CONFIG.TitleText
-	title.TextColor3 = Color3.fromRGB(255, 255, 255)
-	title.TextScaled = true
-	title.Font = Enum.Font.GothamBold
-	title.TextSize = 24
-	title.Parent = topBar
-	
-	local closeButton = Instance.new("TextButton")
-	closeButton.Name = "CloseButton"
-	closeButton.Size = UDim2.new(0, 30, 0, 30)
-	closeButton.Position = UDim2.new(1, -35, 0, 5)
-	closeButton.BackgroundTransparency = 1
-	closeButton.Text = "X"
-	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	closeButton.Font = Enum.Font.GothamBold
-	closeButton.TextSize = 20
-	closeButton.Parent = topBar
-	
-	-- 閉じるボタンのホバーエフェクト
-	closeButton.MouseEnter:Connect(function()
-		closeButton.TextColor3 = Color3.fromRGB(255, 100, 100)
-	end)
-	closeButton.MouseLeave:Connect(function()
-		closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	end)
+local UICorner1 = Instance.new("UICorner")
+UICorner1.CornerRadius = UDim.new(0, 10)
+UICorner1.Parent = keyFrame
 
-	-- アイコン (ContentLayoutに追加)
-	local icon = Instance.new("ImageLabel")
-	icon.Name = "Icon"
-	icon.Size = UDim2.new(0, 50, 0, 50)
-	icon.BackgroundTransparency = 1
-	icon.Image = UI_CONFIG.IconAssetId
-	icon.ImageRectOffset = UI_CONFIG.IconRectOffset
-	icon.ImageRectSize = Vector2.new(36, 36)
-	icon.Parent = mainFrame
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, 0, 0, 50)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "キー認証システム"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = keyFrame
+
+local keyBox = Instance.new("TextBox")
+keyBox.Name = "KeyBox"
+keyBox.Size = UDim2.new(0.8, 0, 0, 40)
+keyBox.Position = UDim2.new(0.1, 0, 0.3, 0)
+keyBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+keyBox.BorderSizePixel = 0
+keyBox.Text = ""
+keyBox.PlaceholderText = "認証キーを入力..."
+keyBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+keyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyBox.TextScaled = true
+keyBox.ClearTextOnFocus = false
+keyBox.Parent = keyFrame
+
+local UICorner2 = Instance.new("UICorner")
+UICorner2.CornerRadius = UDim.new(0, 5)
+UICorner2.Parent = keyBox
+
+local submitButton = Instance.new("TextButton")
+submitButton.Name = "SubmitButton"
+submitButton.Size = UDim2.new(0.6, 0, 0, 40)
+submitButton.Position = UDim2.new(0.2, 0, 0.6, 0)
+submitButton.BackgroundColor3 = Color3.fromRGB(60, 120, 200)
+submitButton.BorderSizePixel = 0
+submitButton.Text = "認証"
+submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+submitButton.TextScaled = true
+submitButton.Font = Enum.Font.GothamBold
+submitButton.Parent = keyFrame
+
+local UICorner3 = Instance.new("UICorner")
+UICorner3.CornerRadius = UDim.new(0, 5)
+UICorner3.Parent = submitButton
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Size = UDim2.new(1, 0, 0, 30)
+statusLabel.Position = UDim2.new(0, 0, 0.85, 0)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "ステータス: 未認証"
+statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.Parent = keyFrame
+
+-- クロスヘアUI（初期状態では非表示）
+local crosshairFrame = Instance.new("Frame")
+crosshairFrame.Name = "CrosshairFrame"
+crosshairFrame.Size = UDim2.new(0, 100, 0, 100)
+crosshairFrame.Position = UDim2.new(0.5, -50, 0.5, -50)
+crosshairFrame.BackgroundTransparency = 1
+crosshairFrame.Visible = false
+crosshairFrame.Parent = screenGui
+
+-- クロスヘアの各線を作成
+local function createCrosshairLine(name, size, position, rotation)
+	local line = Instance.new("Frame")
+	line.Name = name
+	line.Size = size
+	line.Position = position
+	line.Rotation = rotation
+	line.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+	line.BorderSizePixel = 0
+	line.Parent = crosshairFrame
 	
-	-- 説明文
-	local description = Instance.new("TextLabel")
-	description.Name = "Description"
-	description.Size = UDim2.new(1, -UI_CONFIG.Padding.Offset * 2, 0, 60)
-	description.BackgroundTransparency = 1
-	description.Text = "このゲームにアクセスするには認証キーが必要です。\nキーを持っている場合は以下に入力してください。"
-	description.TextColor3 = Color3.fromRGB(200, 200, 200)
-	description.TextWrapped = true
-	description.TextScaled = true
-	description.Font = Enum.Font.Gotham
-	description.TextSize = 18
-	description.Parent = mainFrame
+	local UICorner = Instance.new("UICorner")
+	UICorner.CornerRadius = UDim.new(1, 0)
+	UICorner.Parent = line
 	
-	-- キー入力コンテナ (レイアウト調整用)
-	local keyInputContainer = Instance.new("Frame")
-	keyInputContainer.Name = "KeyInputContainer"
-	keyInputContainer.Size = UDim2.new(1, -UI_CONFIG.Padding.Offset * 2, 0, UI_CONFIG.InputHeight + 20) -- ラベルの高さ分+
-	keyInputContainer.BackgroundTransparency = 1
-	keyInputContainer.Parent = mainFrame
-	
-	local keyInputListLayout = Instance.new("UIListLayout")
-	keyInputListLayout.FillDirection = Enum.FillDirection.Vertical
-	keyInputListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	keyInputListLayout.Padding = UDim.new(0, 5)
-	keyInputListLayout.Parent = keyInputContainer
-	
-	-- キー入力ラベル
-	local keyLabel = Instance.new("TextLabel")
-	keyLabel.Name = "KeyLabel"
-	keyLabel.Size = UDim2.new(1, 0, 0, 15)
-	keyLabel.BackgroundTransparency = 1
-	keyLabel.Text = "キーを入力:"
-	keyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	keyLabel.TextXAlignment = Enum.TextXAlignment.Left
-	keyLabel.Font = Enum.Font.Gotham
-	keyLabel.TextSize = 18
-	keyLabel.Parent = keyInputContainer
-	
-	-- キーテキストボックス
-	local keyTextBox = Instance.new("TextBox")
-	keyTextBox.Name = "KeyTextBox"
-	keyTextBox.Size = UDim2.new(1, 0, 0, UI_CONFIG.InputHeight)
-	keyTextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-	keyTextBox.BorderSizePixel = 0
-	keyTextBox.PlaceholderText = "ここにキーを入力..."
-	keyTextBox.Text = ""
-	keyTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-	keyTextBox.Font = Enum.Font.Gotham
-	keyTextBox.TextSize = 20
-	keyTextBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
-	keyTextBox.ClearTextOnFocus = false
-	keyTextBox.Parent = keyInputContainer
-	
-	-- テキストボックスの角丸
-	local textBoxCorner = Instance.new("UICorner")
-	textBoxCorner.CornerRadius = UDim.new(0, 8)
-	textBoxCorner.Parent = keyTextBox
-	
-	-- 送信ボタン
-	local submitButton = Instance.new("TextButton")
-	submitButton.Name = "SubmitButton"
-	submitButton.Size = UDim2.new(1, 0, 0, UI_CONFIG.ButtonHeight)
-	submitButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-	submitButton.BorderSizePixel = 0
-	submitButton.Text = "認証する"
-	submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	submitButton.Font = Enum.Font.GothamBold
-	submitButton.TextSize = 22
-	submitButton.AutoButtonColor = true
-	submitButton.Parent = mainFrame
-	
-	-- 送信ボタンの角丸
-	local buttonCorner = Instance.new("UICorner")
-	buttonCorner.CornerRadius = UDim.new(0, 8)
-	buttonCorner.Parent = submitButton
-	
-	-- ボタンにホバーエフェクトを追加
-	submitButton.MouseEnter:Connect(function()
-		submitButton.BackgroundColor3 = Color3.fromRGB(0, 140, 255)
-	end)
-	submitButton.MouseLeave:Connect(function()
-		submitButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-	end)
-	
-	-- メッセージ表示ラベル
-	local messageLabel = Instance.new("TextLabel")
-	messageLabel.Name = "MessageLabel"
-	messageLabel.Size = UDim2.new(1, 0, 0, 40)
-	messageLabel.BackgroundTransparency = 1
-	messageLabel.Text = ""
-	messageLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	messageLabel.TextWrapped = true
-	messageLabel.Font = Enum.Font.Gotham
-	messageLabel.TextSize = 16
-	messageLabel.Parent = mainFrame
-	
-	-- 成功時に表示するメッセージフレーム
-	local successFrame = Instance.new("Frame")
-	successFrame.Name = "SuccessFrame"
-	successFrame.Size = UI_CONFIG.FrameSize -- メインフレームと同じサイズで重ねて表示
-	successFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-	successFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-	successFrame.BackgroundColor3 = Color3.fromRGB(30, 40, 30)
-	successFrame.BorderSizePixel = 0
-	successFrame.Visible = false
-	successFrame.ZIndex = 2 -- メインフレームの上に表示
-	successFrame.Parent = screenGui
-	
-	local successCorner = Instance.new("UICorner")
-	successCorner.CornerRadius = UDim.new(0, 12)
-	successCorner.Parent = successFrame
-	
-	local successLayout = Instance.new("UIListLayout")
-	successLayout.FillDirection = Enum.FillDirection.Vertical
-	successLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	successLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	successLayout.Padding = UDim.new(0, 15)
-	successLayout.Parent = successFrame
-	
-	-- 成功アイコン
-	local successIcon = Instance.new("ImageLabel")
-	successIcon.Name = "SuccessIcon"
-	successIcon.Size = UDim2.new(0, 60, 0, 60)
-	successIcon.BackgroundTransparency = 1
-	successIcon.Image = UI_CONFIG.IconAssetId
-	successIcon.ImageRectOffset = UI_CONFIG.SuccessIconRectOffset
-	successIcon.ImageRectSize = Vector2.new(36, 36)
-	successIcon.Parent = successFrame
-	
-	-- 成功メッセージ
-	local successMessage = Instance.new("TextLabel")
-	successMessage.Name = "SuccessMessage"
-	successMessage.Size = UDim2.new(0.8, 0, 0, 60)
-	successMessage.BackgroundTransparency = 1
-	successMessage.Text = UI_CONFIG.SuccessText
-	successMessage.TextColor3 = Color3.fromRGB(200, 255, 200)
-	successMessage.TextWrapped = true
-	successMessage.TextScaled = true
-	successMessage.Font = Enum.Font.GothamBold
-	successMessage.TextSize = 22
-	successMessage.Parent = successFrame
-	
-	-- 関数を返す
-	return {
-		ScreenGui = screenGui,
-		MainFrame = mainFrame,
-		KeyTextBox = keyTextBox,
-		SubmitButton = submitButton,
-		MessageLabel = messageLabel,
-		CloseButton = closeButton,
-		SuccessFrame = successFrame,
-		SuccessMessage = successMessage,
-		Icon = icon -- アニメーション用に追加
-	}
+	return line
 end
 
--- キー認証処理 (サーバーへ送信)
-local function authenticateKey(guiElements: { [string]: GuiObject }, inputKey: string)
-	guiElements.SubmitButton.Active = false
+-- クロスヘアの線を4方向に作成
+createCrosshairLine("TopLine", UDim2.new(0, 2, 0, 15), UDim2.new(0.5, -1, 0.5, -20), 0)
+createCrosshairLine("BottomLine", UDim2.new(0, 2, 0, 15), UDim2.new(0.5, -1, 0.5, 10), 0)
+createCrosshairLine("LeftLine", UDim2.new(0, 15, 0, 2), UDim2.new(0.5, -20, 0.5, -1), 0)
+createCrosshairLine("RightLine", UDim2.new(0, 15, 0, 2), UDim2.new(0.5, 10, 0.5, -1), 0)
+
+-- 中央の点
+local centerDot = Instance.new("Frame")
+centerDot.Name = "CenterDot"
+centerDot.Size = UDim2.new(0, 4, 0, 4)
+centerDot.Position = UDim2.new(0.5, -2, 0.5, -2)
+centerDot.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+centerDot.BorderSizePixel = 0
+centerDot.Parent = crosshairFrame
+
+local UICorner4 = Instance.new("UICorner")
+UICorner4.CornerRadius = UDim.new(1, 0)
+UICorner4.Parent = centerDot
+
+-- 認証キー（ここでキーを設定）
+local validKeys = {
+	"ROBLOX123",
+	"SECRETKEY",
+	"ADMINPASS",
+	"CROSSHAIR2024",
+	"TESTKEY"
+}
+
+-- 認証状態を追跡
+local isAuthenticated = false
+
+-- キーを検証する関数
+local function validateKey(inputKey)
+	-- 大文字小文字を区別せずに比較
+	for _, validKey in ipairs(validKeys) do
+		if inputKey:upper() == validKey:upper() then
+			return true
+		end
+	end
+	return false
+end
+
+-- 認証成功時の処理
+local function onAuthenticationSuccess()
+	isAuthenticated = true
+	statusLabel.Text = "ステータス: 認証成功!"
+	statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 	
-	-- キーの前後の空白を削除
-	inputKey = string.gsub(inputKey, "^%s*(.-)%s*$", "%1")
+	-- クロスヘアを表示
+	crosshairFrame.Visible = true
+	
+	-- キー入力UIを非表示にする
+	keyFrame.Visible = false
+	
+	-- 認証成功メッセージ
+	local successMsg = Instance.new("TextLabel")
+	successMsg.Name = "SuccessMessage"
+	successMsg.Size = UDim2.new(0, 300, 0, 50)
+	successMsg.Position = UDim2.new(0.5, -150, 0.1, 0)
+	successMsg.BackgroundTransparency = 1
+	successMsg.Text = "認証成功! クロスヘアが有効になりました。"
+	successMsg.TextColor3 = Color3.fromRGB(100, 255, 100)
+	successMsg.TextScaled = true
+	successMsg.Font = Enum.Font.GothamBold
+	successMsg.Visible = true
+	successMsg.Parent = screenGui
+	
+	-- 3秒後にメッセージを消す
+	task.wait(3)
+	successMsg:Destroy()
+	
+	-- クロスヘアの色を変更する関数
+	local colorChangeThread = coroutine.create(function()
+		while isAuthenticated do
+			for i = 0, 1, 0.05 do
+				if not isAuthenticated then break end
+				
+				-- 色を緑から赤に変化
+				local r = 1 - i
+				local g = i
+				local color = Color3.new(r, g, 0)
+				
+				-- クロスヘアの色を変更
+				for _, child in ipairs(crosshairFrame:GetChildren()) do
+					if child:IsA("Frame") then
+						child.BackgroundColor3 = color
+					end
+				end
+				
+				task.wait(0.1)
+			end
+			
+			for i = 0, 1, 0.05 do
+				if not isAuthenticated then break end
+				
+				-- 色を赤から緑に変化
+				local r = i
+				local g = 1 - i
+				local color = Color3.new(r, g, 0)
+				
+				-- クロスヘアの色を変更
+				for _, child in ipairs(crosshairFrame:GetChildren()) do
+					if child:IsA("Frame") then
+						child.BackgroundColor3 = color
+					end
+				end
+				
+				task.wait(0.1)
+			end
+		end
+	end)
+	
+	coroutine.resume(colorChangeThread)
+end
+
+-- 認証失敗時の処理
+local function onAuthenticationFailed()
+	statusLabel.Text = "ステータス: 認証失敗"
+	statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+	
+	-- テキストボックスを揺らすアニメーション
+	local originalPosition = keyBox.Position
+	for i = 1, 3 do
+		keyBox.Position = UDim2.new(0.1, math.random(-5, 5), 0.3, math.random(-2, 2))
+		task.wait(0.05)
+	end
+	keyBox.Position = originalPosition
+	
+	-- テキストボックスを赤くする
+	keyBox.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+	task.wait(0.5)
+	keyBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+	
+	-- テキストをクリア
+	keyBox.Text = ""
+end
+
+-- 認証ボタンのクリックイベント
+submitButton.MouseButton1Click:Connect(function()
+	local inputKey = keyBox.Text
 	
 	if inputKey == "" then
-		guiElements.MessageLabel.Text = "キーを入力してください。"
-		guiElements.MessageLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
-		guiElements.SubmitButton.Active = true
+		statusLabel.Text = "ステータス: キーを入力してください"
+		statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
 		return
 	end
 	
-	guiElements.MessageLabel.Text = "認証中..."
-	guiElements.MessageLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
-	
-	-- /////////////////////////////////////////////////////////////
-	-- /// サーバーへキーを送信し、認証結果を待つ (重要な変更点) ///
-	-- /////////////////////////////////////////////////////////////
-	local success, keyType = keySystemEvent:InvokeServer("ValidateKey", inputKey)
-	
-	if success == true then
-		-- 成功
-		
-		-- アニメーション演出
-		guiElements.Icon.ImageRectOffset = Vector2.new(964, 204) -- 鍵からチェックマークに
-		
-		task.wait(0.5)
-		
-		if keyType == "admin" then
-			guiElements.SuccessMessage.Text = UI_CONFIG.AdminSuccessText
-			guiElements.SuccessMessage.TextColor3 = Color3.fromRGB(255, 215, 0)
-		else
-			guiElements.SuccessMessage.Text = UI_CONFIG.SuccessText
-			guiElements.SuccessMessage.TextColor3 = Color3.fromRGB(200, 255, 200)
-		end
-		
-		-- メインフレームを非表示、成功フレームを表示
-		guiElements.MainFrame.Visible = false
-		guiElements.SuccessFrame.Visible = true
-		
-		-- 3秒後に成功フレームを非表示にし、GUIを破棄
-		task.wait(3)
-		
-		-- ここに認証成功後の処理（例: ゲームの機能有効化）
-		print("キー認証成功: " .. keyType .. " 権限")
-		
-		-- グローバル変数（オプション）
-		_G.KeyAuthenticated = true
-		_G.KeyType = keyType
-		
-		-- GUIを破棄
-		guiElements.ScreenGui:Destroy()
-		
+	if validateKey(inputKey) then
+		onAuthenticationSuccess()
 	else
-		-- 失敗
-		guiElements.SubmitButton.Active = true
-		guiElements.Icon.ImageRectOffset = UI_CONFIG.IconRectOffset -- アイコンを元に戻す
-		
-		guiElements.MessageLabel.Text = "無効なキーです。\n正しいキーを入力してください。"
-		guiElements.MessageLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-		
-		-- テキストボックスを揺らすアニメーション
-		local originalPosition = guiElements.KeyTextBox.Position
-		local originalColor = guiElements.KeyTextBox.BackgroundColor3
-		
-		-- 揺れ
-		local tweenService = game:GetService("TweenService")
-		local shakeTweenInfo = TweenInfo.new(0.02, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 5, true, 0)
-		for i = 1, 5 do
-			guiElements.KeyTextBox.Position = UDim2.new(
-				originalPosition.X.Scale,
-				originalPosition.X.Offset + math.random(-3, 3),
-				originalPosition.Y.Scale,
-				originalPosition.Y.Offset
-			)
-			task.wait(0.02)
-		end
-		guiElements.KeyTextBox.Position = originalPosition
-		
-		-- 赤色強調
-		guiElements.KeyTextBox:TweenBackgroundColor(Color3.fromRGB(65, 40, 40), "Out", "Linear", 0.1, false)
-		task.wait(0.5)
-		guiElements.KeyTextBox:TweenBackgroundColor(originalColor, "Out", "Linear", 0.5, false)
+		onAuthenticationFailed()
 	end
-end
+end)
 
--- メイン処理
-local function main()
-	-- GUIを作成
-	local guiElements = createKeySystemGUI()
-	
-	-- キーボード入力で送信できるようにする
-	guiElements.KeyTextBox.FocusLost:Connect(function(enterPressed)
-		if enterPressed then
-			authenticateKey(guiElements, guiElements.KeyTextBox.Text)
-		end
-	end)
-	
-	-- 送信ボタンのクリックイベント
-	guiElements.SubmitButton.MouseButton1Click:Connect(function()
-		authenticateKey(guiElements, guiElements.KeyTextBox.Text)
-	end)
-	
-	-- 閉じるボタンのクリックイベント
-	guiElements.CloseButton.MouseButton1Click:Connect(function()
-		-- 認証システムを閉じてもゲームをプレイできないようにするため、警告を再表示
-		guiElements.MessageLabel.Text = "ゲームをプレイするには認証が必要です。"
-		guiElements.MessageLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
-	end)
-end
+-- Enterキーでも認証できるように
+keyBox.FocusLost:Connect(function(enterPressed)
+	if enterPressed then
+		submitButton.MouseButton1Click:Wait()
+	end
+end)
 
--- スクリプトの実行
-main()
+-- UIを閉じる機能（オプション）
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 5)
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+closeButton.BorderSizePixel = 0
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextScaled = true
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Parent = keyFrame
+
+local UICorner5 = Instance.new("UICorner")
+UICorner5.CornerRadius = UDim.new(0, 15)
+UICorner5.Parent = closeButton
+
+closeButton.MouseButton1Click:Connect(function()
+	keyFrame.Visible = false
+end)
+
+-- クロスヘアの表示/非表示を切り替えるキー（例: Hキー）
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	
+	if input.KeyCode == Enum.KeyCode.H and isAuthenticated then
+		crosshairFrame.Visible = not crosshairFrame.Visible
+		
+		-- 切り替えメッセージ
+		local toggleMsg = Instance.new("TextLabel")
+		toggleMsg.Name = "ToggleMessage"
+		toggleMsg.Size = UDim2.new(0, 250, 0, 40)
+		toggleMsg.Position = UDim2.new(0.5, -125, 0.15, 0)
+		toggleMsg.BackgroundTransparency = 1
+		toggleMsg.Text = "クロスヘア: " .. (crosshairFrame.Visible and "ON" or "OFF")
+		toggleMsg.TextColor3 = crosshairFrame.Visible and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+		toggleMsg.TextScaled = true
+		toggleMsg.Font = Enum.Font.Gotham
+		toggleMsg.Visible = true
+		toggleMsg.Parent = screenGui
+		
+		task.wait(1.5)
+		toggleMsg:Destroy()
+	end
+end)
+
+-- デバッグ用: コンソールに有効なキーを表示
+print("有効な認証キー:")
+for i, key in ipairs(validKeys) do
+	print(i .. ": " .. key)
+end
+print("Hキーでクロスヘアの表示/非表示を切り替えられます")
+
+-- ヒントを表示
+local hintLabel = Instance.new("TextLabel")
+hintLabel.Name = "HintLabel"
+hintLabel.Size = UDim2.new(0.8, 0, 0, 20)
+hintLabel.Position = UDim2.new(0.1, 0, 0.75, 0)
+hintLabel.BackgroundTransparency = 1
+hintLabel.Text = "ヒント: 有効なキーの例: ROBLOX123, SECRETKEY"
+hintLabel.TextColor3 = Color3.fromRGB(150, 150, 200)
+hintLabel.TextScaled = true
+hintLabel.Font = Enum.Font.Gotham
+hintLabel.TextXAlignment = Enum.TextXAlignment.Left
+hintLabel.Parent = keyFrame
