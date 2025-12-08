@@ -1,436 +1,352 @@
--- Rayfield UI Libraryの読み込み
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source.lua'))()
+-- Key System UI for Roblox
+-- このスクリプトはStarterGuiの中のScreenGuiに配置するか、
+-- またはLocalScriptとしてStarterPlayerScriptsに配置してください
 
--- UIの作成
-local Window = Rayfield:CreateWindow({
-   Name = "カスタムUI",
-   LoadingTitle = "読み込み中...",
-   LoadingSubtitle = "Rayfield UI Library",
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = nil,
-      FileName = "設定ファイル"
-   },
-   Discord = {
-      Enabled = false,
-      Invite = "noinvitelink",
-      RememberJoins = true
-   },
-   KeySystem = false,
-   KeySettings = {
-      Title = "キーシステム",
-      Subtitle = "キーを入力してください",
-      Note = "キーを購入するには...",
-      FileName = "キー",
-      SaveKey = true,
-      GrabKeyFromSite = false,
-      Key = {"Hello"}
-   }
-})
+-- サービス取得
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
 
--- メインタブ
-local MainTab = Window:CreateTab("Main", 4483362458)
+-- プレイヤーを取得
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- スピードチェンジ
-local SpeedSection = MainTab:CreateSection("移動設定")
-local SpeedSlider = MainTab:CreateSlider({
-   Name = "スピード倍率",
-   Range = {1, 50},
-   Increment = 1,
-   Suffix = "x",
-   CurrentValue = 1,
-   Flag = "SpeedMultiplier",
-   Callback = function(Value)
-       local humanoid = game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
-       if humanoid then
-           humanoid.WalkSpeed = 16 * Value
-       end
-   end,
-})
+-- 正しいキー（ここで変更可能）
+local correctKey = "ROBLOX123"
+-- 管理者用キー（オプション）
+local adminKey = "ADMIN2024"
 
--- ジャンプ力
-local JumpPowerSlider = MainTab:CreateSlider({
-   Name = "ジャンプ力",
-   Range = {50, 200},
-   Increment = 5,
-   Suffix = "パワー",
-   CurrentValue = 50,
-   Flag = "JumpPower",
-   Callback = function(Value)
-       local humanoid = game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
-       if humanoid then
-           humanoid.JumpPower = Value
-       end
-   end,
-})
-
--- 浮遊力
-local FloatToggle = MainTab:CreateToggle({
-   Name = "浮遊",
-   CurrentValue = false,
-   Flag = "FloatEnabled",
-   Callback = function(Value)
-       _G.FloatEnabled = Value
-       if Value then
-           spawn(function()
-               while _G.FloatEnabled do
-                   wait()
-                   local character = game.Players.LocalPlayer.Character
-                   if character then
-                       local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                       if humanoidRootPart then
-                           humanoidRootPart.Velocity = Vector3.new(humanoidRootPart.Velocity.X, 0, humanoidRootPart.Velocity.Z)
-                       end
-                   end
-               end
-           end)
-       end
-   end,
-})
-
--- Fly機能
-local FlySection = MainTab:CreateSection("Fly設定")
-local FlyToggle = MainTab:CreateToggle({
-   Name = "Fly有効化",
-   CurrentValue = false,
-   Flag = "FlyEnabled",
-   Callback = function(Value)
-       _G.FLY_TOGGLE = Value
-       local player = game.Players.LocalPlayer
-       local character = player.Character or player.CharacterAdded:Wait()
-       local humanoid = character:WaitForChild("Humanoid")
-       
-       if Value then
-           -- 飛行機能の初期化
-           local bodyVelocity = Instance.new("BodyVelocity")
-           bodyVelocity.Name = "FlyBodyVelocity"
-           bodyVelocity.Parent = character.HumanoidRootPart
-           bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-           
-           spawn(function()
-               while _G.FLY_TOGGLE do
-                   wait()
-                   if character and character.HumanoidRootPart then
-                       local cam = workspace.CurrentCamera.CFrame
-                       local moveDirection = Vector3.new()
-                       
-                       if userinputservice:IsKeyDown(Enum.KeyCode.W) then
-                           moveDirection = moveDirection + cam.LookVector
-                       end
-                       if userinputservice:IsKeyDown(Enum.KeyCode.S) then
-                           moveDirection = moveDirection - cam.LookVector
-                       end
-                       if userinputservice:IsKeyDown(Enum.KeyCode.A) then
-                           moveDirection = moveDirection - cam.RightVector
-                       end
-                       if userinputservice:IsKeyDown(Enum.KeyCode.D) then
-                           moveDirection = moveDirection + cam.RightVector
-                       end
-                       
-                       moveDirection = moveDirection.Unit * 100
-                       bodyVelocity.Velocity = moveDirection
-                   end
-               end
-           end)
-       else
-           -- 飛行機能の無効化
-           if character and character.HumanoidRootPart:FindFirstChild("FlyBodyVelocity") then
-               character.HumanoidRootPart.FlyBodyVelocity:Destroy()
-           end
-       end
-   end,
-})
-
-local FlySpeedSlider = MainTab:CreateSlider({
-   Name = "Fly速度",
-   Range = {50, 500},
-   Increment = 10,
-   Suffix = "速度",
-   CurrentValue = 100,
-   Flag = "FlySpeed",
-   Callback = function(Value)
-       _G.FLY_SPEED = Value
-   end,
-})
-
--- その他の機能をここに追加可能
-
--- 設定タブ
-local SettingsTab = Window:CreateTab("設定", 4483362458)
-
--- UI形状設定
-local UIShapeSection = SettingsTab:CreateSection("UI形状設定")
-
-local UIShapeDropdown = SettingsTab:CreateDropdown({
-   Name = "UI形状",
-   Options = {"四角", "丸", "通常", "卍型", "六角形", "星型"},
-   CurrentOption = "通常",
-   Flag = "UIShape",
-   Callback = function(Option)
-       -- UI形状変更の実装
-       Rayfield:Notify({
-           Title = "UI形状変更",
-           Content = "形状を " .. Option .. " に変更しました",
-           Duration = 2,
-           Image = 4483362458
-       })
-   end,
-})
-
--- UIカラー設定
-local UIColorSection = SettingsTab:CreateSection("UIカラー設定")
-
-local UIColorPalette = SettingsTab:CreateColorPicker({
-   Name = "UIメインカラー",
-   Color = Color3.fromRGB(0, 85, 255),
-   Flag = "UIColor1",
-   Callback = function(Color)
-       -- UIカラー変更の実装
-   end,
-})
-
--- 12色のカラーピッカーを追加
-for i = 2, 12 do
-   SettingsTab:CreateColorPicker({
-       Name = "UIカラー " .. i,
-       Color = Color3.fromRGB(
-           math.random(0, 255),
-           math.random(0, 255),
-           math.random(0, 255)
-       ),
-       Flag = "UIColor" .. i,
-       Callback = function(Color)
-           -- 各カラー変更の実装
-       end,
-   })
+-- GUIを作成する関数
+local function createKeySystemGUI()
+	-- ScreenGuiを作成
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "KeySystemGUI"
+	screenGui.ResetOnSpawn = false
+	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	
+	-- メインフレーム
+	local mainFrame = Instance.new("Frame")
+	mainFrame.Name = "MainFrame"
+	mainFrame.Size = UDim2.new(0, 400, 0, 350)
+	mainFrame.Position = UDim2.new(0.5, -200, 0.5, -175)
+	mainFrame.AnchorPoint = Vector2.new(0, 0)
+	mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	mainFrame.BorderSizePixel = 0
+	mainFrame.ClipsDescendants = true
+	
+	-- 角丸にする
+	local uiCorner = Instance.new("UICorner")
+	uiCorner.CornerRadius = UDim.new(0, 12)
+	uiCorner.Parent = mainFrame
+	
+	-- 上部バー
+	local topBar = Instance.new("Frame")
+	topBar.Name = "TopBar"
+	topBar.Size = UDim2.new(1, 0, 0, 40)
+	topBar.Position = UDim2.new(0, 0, 0, 0)
+	topBar.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+	topBar.BorderSizePixel = 0
+	
+	local topBarCorner = Instance.new("UICorner")
+	topBarCorner.CornerRadius = UDim.new(0, 12, 0, 0)
+	topBarCorner.Parent = topBar
+	
+	-- タイトル
+	local title = Instance.new("TextLabel")
+	title.Name = "Title"
+	title.Size = UDim2.new(1, 0, 1, 0)
+	title.Position = UDim2.new(0, 0, 0, 0)
+	title.BackgroundTransparency = 1
+	title.Text = "🔐 キー認証システム"
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.TextScaled = true
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 24
+	title.Parent = topBar
+	
+	-- アイコン
+	local icon = Instance.new("ImageLabel")
+	icon.Name = "Icon"
+	icon.Size = UDim2.new(0, 30, 0, 30)
+	icon.Position = UDim2.new(0.5, -15, 0, 70)
+	icon.BackgroundTransparency = 1
+	icon.Image = "rbxassetid://3926305904"
+	icon.ImageRectOffset = Vector2.new(964, 324)
+	icon.ImageRectSize = Vector2.new(36, 36)
+	icon.Parent = mainFrame
+	
+	-- 説明文
+	local description = Instance.new("TextLabel")
+	description.Name = "Description"
+	description.Size = UDim2.new(0.8, 0, 0, 60)
+	description.Position = UDim2.new(0.1, 0, 0, 110)
+	description.BackgroundTransparency = 1
+	description.Text = "このゲームにアクセスするには認証キーが必要です。\nキーを持っている場合は以下に入力してください。"
+	description.TextColor3 = Color3.fromRGB(200, 200, 200)
+	description.TextWrapped = true
+	description.TextScaled = true
+	description.Font = Enum.Font.Gotham
+	description.TextSize = 18
+	description.Parent = mainFrame
+	
+	-- キー入力ラベル
+	local keyLabel = Instance.new("TextLabel")
+	keyLabel.Name = "KeyLabel"
+	keyLabel.Size = UDim2.new(0.8, 0, 0, 20)
+	keyLabel.Position = UDim2.new(0.1, 0, 0, 180)
+	keyLabel.BackgroundTransparency = 1
+	keyLabel.Text = "キーを入力:"
+	keyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	keyLabel.TextXAlignment = Enum.TextXAlignment.Left
+	keyLabel.Font = Enum.Font.Gotham
+	keyLabel.TextSize = 18
+	keyLabel.Parent = mainFrame
+	
+	-- キーテキストボックス
+	local keyTextBox = Instance.new("TextBox")
+	keyTextBox.Name = "KeyTextBox"
+	keyTextBox.Size = UDim2.new(0.8, 0, 0, 45)
+	keyTextBox.Position = UDim2.new(0.1, 0, 0, 205)
+	keyTextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+	keyTextBox.BorderSizePixel = 0
+	keyTextBox.PlaceholderText = "ここにキーを入力..."
+	keyTextBox.Text = ""
+	keyTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	keyTextBox.Font = Enum.Font.Gotham
+	keyTextBox.TextSize = 20
+	keyTextBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+	keyTextBox.ClearTextOnFocus = false
+	keyTextBox.Parent = mainFrame
+	
+	-- テキストボックスの角丸
+	local textBoxCorner = Instance.new("UICorner")
+	textBoxCorner.CornerRadius = UDim.new(0, 8)
+	textBoxCorner.Parent = keyTextBox
+	
+	-- 送信ボタン
+	local submitButton = Instance.new("TextButton")
+	submitButton.Name = "SubmitButton"
+	submitButton.Size = UDim2.new(0.8, 0, 0, 50)
+	submitButton.Position = UDim2.new(0.1, 0, 0, 270)
+	submitButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+	submitButton.BorderSizePixel = 0
+	submitButton.Text = "認証する"
+	submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	submitButton.Font = Enum.Font.GothamBold
+	submitButton.TextSize = 22
+	submitButton.AutoButtonColor = true
+	submitButton.Parent = mainFrame
+	
+	-- 送信ボタンの角丸
+	local buttonCorner = Instance.new("UICorner")
+	buttonCorner.CornerRadius = UDim.new(0, 8)
+	buttonCorner.Parent = submitButton
+	
+	-- ボタンにホバーエフェクトを追加
+	submitButton.MouseEnter:Connect(function()
+		submitButton.BackgroundColor3 = Color3.fromRGB(0, 140, 255)
+	end)
+	
+	submitButton.MouseLeave:Connect(function()
+		submitButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+	end)
+	
+	-- メッセージ表示ラベル
+	local messageLabel = Instance.new("TextLabel")
+	messageLabel.Name = "MessageLabel"
+	messageLabel.Size = UDim2.new(0.8, 0, 0, 40)
+	messageLabel.Position = UDim2.new(0.1, 0, 0, 330)
+	messageLabel.BackgroundTransparency = 1
+	messageLabel.Text = ""
+	messageLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	messageLabel.TextWrapped = true
+	messageLabel.Font = Enum.Font.Gotham
+	messageLabel.TextSize = 16
+	messageLabel.Parent = mainFrame
+	
+	-- 閉じるボタン（右上）
+	local closeButton = Instance.new("TextButton")
+	closeButton.Name = "CloseButton"
+	closeButton.Size = UDim2.new(0, 30, 0, 30)
+	closeButton.Position = UDim2.new(1, -35, 0, 5)
+	closeButton.BackgroundTransparency = 1
+	closeButton.Text = "X"
+	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeButton.Font = Enum.Font.GothamBold
+	closeButton.TextSize = 20
+	closeButton.Parent = topBar
+	
+	-- 閉じるボタンのホバーエフェクト
+	closeButton.MouseEnter:Connect(function()
+		closeButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+	end)
+	
+	closeButton.MouseLeave:Connect(function()
+		closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	end)
+	
+	-- GUIをプレイヤーのGuiに追加
+	screenGui.Parent = playerGui
+	mainFrame.Parent = screenGui
+	
+	-- 成功時に表示するメッセージフレーム
+	local successFrame = Instance.new("Frame")
+	successFrame.Name = "SuccessFrame"
+	successFrame.Size = UDim2.new(0, 400, 0, 200)
+	successFrame.Position = UDim2.new(0.5, -200, 0.5, -100)
+	successFrame.BackgroundColor3 = Color3.fromRGB(30, 40, 30)
+	successFrame.BorderSizePixel = 0
+	successFrame.Visible = false
+	
+	local successCorner = Instance.new("UICorner")
+	successCorner.CornerRadius = UDim.new(0, 12)
+	successCorner.Parent = successFrame
+	
+	-- 成功アイコン
+	local successIcon = Instance.new("ImageLabel")
+	successIcon.Name = "SuccessIcon"
+	successIcon.Size = UDim2.new(0, 60, 0, 60)
+	successIcon.Position = UDim2.new(0.5, -30, 0, 30)
+	successIcon.BackgroundTransparency = 1
+	successIcon.Image = "rbxassetid://3926305904"
+	successIcon.ImageRectOffset = Vector2.new(964, 204)
+	successIcon.ImageRectSize = Vector2.new(36, 36)
+	successIcon.Parent = successFrame
+	
+	-- 成功メッセージ
+	local successMessage = Instance.new("TextLabel")
+	successMessage.Name = "SuccessMessage"
+	successMessage.Size = UDim2.new(0.8, 0, 0, 60)
+	successMessage.Position = UDim2.new(0.1, 0, 0, 110)
+	successMessage.BackgroundTransparency = 1
+	successMessage.Text = "認証成功！\nゲームを開始してください。"
+	successMessage.TextColor3 = Color3.fromRGB(200, 255, 200)
+	successMessage.TextWrapped = true
+	successMessage.TextScaled = true
+	successMessage.Font = Enum.Font.GothamBold
+	successMessage.TextSize = 22
+	successMessage.Parent = successFrame
+	
+	successFrame.Parent = screenGui
+	
+	-- 関数を返す
+	return {
+		ScreenGui = screenGui,
+		MainFrame = mainFrame,
+		KeyTextBox = keyTextBox,
+		SubmitButton = submitButton,
+		MessageLabel = messageLabel,
+		CloseButton = closeButton,
+		SuccessFrame = successFrame,
+		SuccessMessage = successMessage
+	}
 end
 
--- シフトロック設定
-local ShiftLockSection = SettingsTab:CreateSection("シフトロック設定")
-
-local ShiftLockToggle = SettingsTab:CreateToggle({
-   Name = "シフトロック有効",
-   CurrentValue = false,
-   Flag = "ShiftLockEnabled",
-   Callback = function(Value)
-       _G.ShiftLockEnabled = Value
-       if Value then
-           -- シフトロック有効化の実装
-           game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
-               if input.KeyCode == Enum.KeyCode.LeftShift then
-                   game:GetService("Players").LocalPlayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
-               end
-           end)
-           
-           game:GetService("UserInputService").InputEnded:Connect(function(input, gameProcessed)
-               if input.KeyCode == Enum.KeyCode.LeftShift then
-                   game:GetService("Players").LocalPlayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
-               end
-           end)
-       end
-   end,
-})
-
--- クロスヘア設定
-local CrosshairSection = SettingsTab:CreateSection("クロスヘア設定")
-
-local CrosshairToggle = SettingsTab:CreateToggle({
-   Name = "クロスヘア表示",
-   CurrentValue = false,
-   Flag = "CrosshairEnabled",
-   Callback = function(Value)
-       _G.CrosshairEnabled = Value
-       if Value then
-           -- クロスヘア作成
-           createCrosshair()
-       else
-           -- クロスヘア削除
-           if _G.CrosshairFrame then
-               _G.CrosshairFrame:Destroy()
-           end
-       end
-   end,
-})
-
-local CrosshairShapeDropdown = SettingsTab:CreateDropdown({
-   Name = "クロスヘア形状",
-   Options = {"十字", "丸", "四角", "卍型", "点", "X型"},
-   CurrentOption = "十字",
-   Flag = "CrosshairShape",
-   Callback = function(Option)
-       _G.CrosshairShape = Option
-       updateCrosshair()
-   end,
-})
-
-local CrosshairSizeSlider = SettingsTab:CreateSlider({
-   Name = "クロスヘアサイズ",
-   Range = {10, 100},
-   Increment = 5,
-   Suffix = "px",
-   CurrentValue = 20,
-   Flag = "CrosshairSize",
-   Callback = function(Value)
-       _G.CrosshairSize = Value
-       updateCrosshair()
-   end,
-})
-
-local CrosshairColorPicker = SettingsTab:CreateColorPicker({
-   Name = "クロスヘアカラー",
-   Color = Color3.fromRGB(255, 255, 255),
-   Flag = "CrosshairColor",
-   Callback = function(Color)
-       _G.CrosshairColor = Color
-       updateCrosshair()
-   end,
-})
-
-local CrosshairThicknessSlider = SettingsTab:CreateSlider({
-   Name = "クロスヘア太さ",
-   Range = {1, 10},
-   Increment = 1,
-   Suffix = "px",
-   CurrentValue = 2,
-   Flag = "CrosshairThickness",
-   Callback = function(Value)
-       _G.CrosshairThickness = Value
-       updateCrosshair()
-   end,
-})
-
--- クロスヘア作成関数
-function createCrosshair()
-   if _G.CrosshairFrame then
-       _G.CrosshairFrame:Destroy()
-   end
-  
-   local player = game.Players.LocalPlayer
-   local playerGui = player:WaitForChild("PlayerGui")
-  
-   _G.CrosshairFrame = Instance.new("ScreenGui")
-   _G.CrosshairFrame.Name = "CrosshairGui"
-   _G.CrosshairFrame.Parent = playerGui
-   _G.CrosshairFrame.ResetOnSpawn = false
-  
-   updateCrosshair()
+-- キー検証関数
+local function validateKey(inputKey)
+	-- キーの前後の空白を削除
+	inputKey = string.gsub(inputKey, "^%s*(.-)%s*$", "%1")
+	
+	-- 正しいキーかチェック
+	if inputKey == correctKey then
+		return true, "standard"
+	elseif inputKey == adminKey then
+		return true, "admin"
+	else
+		return false, "invalid"
+	end
 end
 
-function updateCrosshair()
-   if not _G.CrosshairFrame or not _G.CrosshairEnabled then return end
-  
-   -- 既存のクロスヘアをクリア
-   for _, v in pairs(_G.CrosshairFrame:GetChildren()) do
-       v:Destroy()
-   end
-  
-   local centerX = UDim.new(0.5, 0)
-   local centerY = UDim.new(0.5, 0)
-   local size = _G.CrosshairSize or 20
-   local color = _G.CrosshairColor or Color3.fromRGB(255, 255, 255)
-   local thickness = _G.CrosshairThickness or 2
-   local shape = _G.CrosshairShape or "十字"
-  
-   if shape == "十字" then
-       -- 横線
-       local horizontal = Instance.new("Frame")
-       horizontal.Size = UDim2.new(0, size, 0, thickness)
-       horizontal.Position = UDim2.new(0.5, -size/2, 0.5, -thickness/2)
-       horizontal.BackgroundColor3 = color
-       horizontal.BorderSizePixel = 0
-       horizontal.Parent = _G.CrosshairFrame
-      
-       -- 縦線
-       local vertical = Instance.new("Frame")
-       vertical.Size = UDim2.new(0, thickness, 0, size)
-       vertical.Position = UDim2.new(0.5, -thickness/2, 0.5, -size/2)
-       vertical.BackgroundColor3 = color
-       vertical.BorderSizePixel = 0
-       vertical.Parent = _G.CrosshairFrame
-      
-   elseif shape == "卍型" then
-       -- 卍型の実装（簡易版）
-       local swastika = Instance.new("Frame")
-       swastika.Size = UDim2.new(0, size, 0, size)
-       swastika.Position = UDim2.new(0.5, -size/2, 0.5, -size/2)
-       swastika.BackgroundColor3 = color
-       swastika.BackgroundTransparency = 0.5
-       swastika.BorderSizePixel = 0
-       swastika.Parent = _G.CrosshairFrame
-      
-       -- ここに卍型の詳細な描画を追加
-   elseif shape == "丸" then
-       local circle = Instance.new("Frame")
-       circle.Size = UDim2.new(0, size, 0, size)
-       circle.Position = UDim2.new(0.5, -size/2, 0.5, -size/2)
-       circle.BackgroundColor3 = color
-       circle.BorderSizePixel = 0
-       circle.Parent = _G.CrosshairFrame
-   end
+-- メイン処理
+local function main()
+	-- GUIを作成
+	local guiElements = createKeySystemGUI()
+	
+	-- キーボード入力で送信できるようにする
+	guiElements.KeyTextBox.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			guiElements.SubmitButton:Activate()
+		end
+	end)
+	
+	-- 送信ボタンのクリックイベント
+	guiElements.SubmitButton.MouseButton1Click:Connect(function()
+		local inputKey = guiElements.KeyTextBox.Text
+		
+		if inputKey == "" then
+			guiElements.MessageLabel.Text = "キーを入力してください。"
+			guiElements.MessageLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+			return
+		end
+		
+		local isValid, keyType = validateKey(inputKey)
+		
+		if isValid then
+			-- 成功メッセージ
+			guiElements.MessageLabel.Text = "認証中..."
+			guiElements.MessageLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+			
+			-- 少し遅延を入れて成功を演出
+			wait(0.8)
+			
+			if keyType == "admin" then
+				guiElements.SuccessMessage.Text = "管理者権限で認証成功！\nすべての機能が利用可能です。"
+				guiElements.SuccessMessage.TextColor3 = Color3.fromRGB(255, 215, 0)
+			else
+				guiElements.SuccessMessage.Text = "認証成功！\nゲームを開始してください。"
+				guiElements.SuccessMessage.TextColor3 = Color3.fromRGB(200, 255, 200)
+			end
+			
+			-- メインフレームを非表示、成功フレームを表示
+			guiElements.MainFrame.Visible = false
+			guiElements.SuccessFrame.Visible = true
+			
+			-- 5秒後に成功フレームを非表示にする
+			wait(3)
+			guiElements.ScreenGui:Destroy()
+			
+			-- ここに認証成功後の処理を追加
+			-- 例: ゲームの機能を有効化する
+			print("キー認証成功: " .. keyType .. " 権限")
+			
+			-- ゲーム内で使うグローバル変数（オプション）
+			_G.KeyAuthenticated = true
+			_G.KeyType = keyType
+			
+		else
+			-- エラーメッセージ
+			guiElements.MessageLabel.Text = "無効なキーです。\n正しいキーを入力してください。"
+			guiElements.MessageLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+			
+			-- テキストボックスを揺らすアニメーション
+			local originalPosition = guiElements.KeyTextBox.Position
+			for i = 1, 5 do
+				guiElements.KeyTextBox.Position = UDim2.new(
+					originalPosition.X.Scale, 
+					originalPosition.X.Offset + math.random(-3, 3),
+					originalPosition.Y.Scale, 
+					originalPosition.Y.Offset
+				)
+				wait(0.02)
+			end
+			guiElements.KeyTextBox.Position = originalPosition
+			
+			-- テキストボックスを赤くする
+			guiElements.KeyTextBox.BackgroundColor3 = Color3.fromRGB(65, 40, 40)
+			wait(0.5)
+			guiElements.KeyTextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+		end
+	end)
+	
+	-- 閉じるボタンのクリックイベント
+	guiElements.CloseButton.MouseButton1Click:Connect(function()
+		guiElements.MessageLabel.Text = "ゲームをプレイするには認証が必要です。"
+		guiElements.MessageLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+	end)
+	
+	-- ヒントを表示（実際のゲームでは削除）
+	guiElements.MessageLabel.Text = "ヒント: 正しいキーは '" .. correctKey .. "' です"
+	guiElements.MessageLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
 end
 
--- UI削除確認システム
-local DeleteSection = SettingsTab:CreateSection("UI削除")
-
-local DeleteButton = SettingsTab:CreateButton({
-   Name = "UIを削除",
-   Callback = function()
-       -- 確認用の新しいウィンドウを作成
-       local ConfirmWindow = Rayfield:CreateWindow({
-           Name = "削除確認",
-           LoadingTitle = "確認中...",
-           LoadingSubtitle = "UI削除の確認",
-           ConfigurationSaving = {
-               Enabled = false,
-           },
-           Discord = {
-               Enabled = false,
-           },
-           KeySystem = false,
-       })
-      
-       local ConfirmTab = ConfirmWindow:CreateTab("確認", 4483362458)
-      
-       ConfirmTab:CreateLabel({
-           Name = "本当にUIを削除しますか？",
-           Text = "この操作は元に戻せません"
-       })
-      
-       -- はいボタン
-       ConfirmTab:CreateButton({
-           Name = "はい - 削除する",
-           Callback = function()
-               Rayfield:Destroy()
-               ConfirmWindow:Destroy()
-           end,
-       })
-      
-       -- いいえボタン
-       ConfirmTab:CreateButton({
-           Name = "いいえ - キャンセル",
-           Callback = function()
-               ConfirmWindow:Destroy()
-               Rayfield:Notify({
-                   Title = "削除キャンセル",
-                   Content = "UI削除をキャンセルしました",
-                   Duration = 2,
-                   Image = 4483362458
-               })
-           end,
-       })
-   end,
-})
-
--- サービス参照
-local userinputservice = game:GetService("UserInputService")
-
--- 初期化完了通知
-Rayfield:Notify({
-   Title = "UI読み込み完了",
-   Content = "すべての機能が読み込まれました",
-   Duration = 3,
-   Image = 4483362458
-})
-
--- UIの表示
-Rayfield:LoadConfiguration()
+-- スクリプトの実行
+main()
