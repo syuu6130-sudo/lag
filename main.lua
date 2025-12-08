@@ -1,5 +1,5 @@
--- Arseus x Neo Style UI v3.0 - レスポンシブ対応
--- モバイルとPCで最適なサイズを自動調整
+-- Arseus x Neo Style UI v3.1 - スマホ対応認証
+-- 認証画面をモバイルとPCの両方に対応
 
 -- サービスの取得
 local Players = game:GetService("Players")
@@ -21,17 +21,17 @@ local IS_DESKTOP = not IS_MOBILE and not IS_CONSOLE
 -- 画面サイズに基づくUIサイズ計算
 function GetUISize()
     if IS_MOBILE then
-        -- モバイル: 画面の80%幅、適応的高さ
+        -- モバイル: 画面の85%幅、適応的高さ
         local viewportSize = workspace.CurrentCamera.ViewportSize
-        local width = math.min(viewportSize.X * 0.9, 450)  -- 最大450px
-        local height = math.min(viewportSize.Y * 0.7, 500) -- 最大500px
+        local width = math.min(viewportSize.X * 0.85, 400)
+        local height = math.min(viewportSize.Y * 0.7, 400)
         return UDim2.new(0, width, 0, height)
     elseif IS_DESKTOP then
         -- PC: 固定サイズ
-        return UDim2.new(0, 650, 0, 550)
+        return UDim2.new(0, 450, 0, 400)
     else
         -- コンソールなど
-        return UDim2.new(0, 500, 0, 450)
+        return UDim2.new(0, 400, 0, 350)
     end
 end
 
@@ -164,66 +164,6 @@ local AnimationConfig = {
     ClickScale = 0.95
 }
 
--- 関数: スムーズドラッグ
-local function CreateSmoothDrag(frame, dragPart)
-    local dragging = false
-    local dragInput, dragStart, startPos
-    
-    local function Update(input)
-        local delta = input.Position - dragStart
-        local newPos = UDim2.new(
-            startPos.X.Scale, 
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale, 
-            startPos.Y.Offset + delta.Y
-        )
-        
-        -- 画面内に制限
-        local viewportSize = workspace.CurrentCamera.ViewportSize
-        local frameSize = frame.AbsoluteSize
-        
-        newPos = UDim2.new(
-            math.clamp(newPos.X.Scale, 0, 1 - (frameSize.X / viewportSize.X)),
-            math.clamp(newPos.X.Offset, 0, viewportSize.X - frameSize.X),
-            math.clamp(newPos.Y.Scale, 0, 1 - (frameSize.Y / viewportSize.Y)),
-            math.clamp(newPos.Y.Offset, 0, viewportSize.Y - frameSize.Y)
-        )
-        
-        -- スムーズな移動
-        local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local tween = TweenService:Create(frame, tweenInfo, {Position = newPos})
-        tween:Play()
-    end
-    
-    dragPart.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
-           input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-    
-    dragPart.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or
-           input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            Update(input)
-        end
-    end)
-end
-
 -- 関数: ボタンアニメーション
 local function CreateButtonAnimation(button)
     local originalSize = button.Size
@@ -289,15 +229,15 @@ local function CreateButtonAnimation(button)
     end)
 end
 
--- 関数: 認証画面の作成
+-- 関数: スマホ対応認証画面の作成
 local function CreateAuthWindow()
     AuthWindow = Instance.new("Frame")
     AuthWindow.Name = "AuthWindow"
     
     -- デバイスに応じたサイズ設定
     local uiSize = GetUISize()
-    AuthWindow.Size = UDim2.new(0, uiSize.X.Offset * 0.7, 0, uiSize.Y.Offset * 0.6)
-    AuthWindow.Position = UDim2.new(0.5, -uiSize.X.Offset * 0.7 / 2, 0.5, -uiSize.Y.Offset * 0.6 / 2)
+    AuthWindow.Size = uiSize
+    AuthWindow.Position = UDim2.new(0.5, -uiSize.X.Offset/2, 0.5, -uiSize.Y.Offset/2)
     
     AuthWindow.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
     AuthWindow.BackgroundTransparency = 0.05
@@ -340,10 +280,10 @@ local function CreateAuthWindow()
     -- サブタイトル
     local subtitle = Instance.new("TextLabel")
     subtitle.Name = "Subtitle"
-    subtitle.Size = UDim2.new(1, -40, 0, IS_MOBILE and 30 or 40)
-    subtitle.Position = UDim2.new(0, 20, 0, IS_MOBILE and 65 or 80)
+    subtitle.Size = UDim2.new(1, -40, 0, IS_MOBILE and 40 or 50)
+    subtitle.Position = UDim2.new(0, 20, 0, IS_MOBILE and 65 or 75)
     subtitle.BackgroundTransparency = 1
-    subtitle.Text = "Arseus x Neo UIにアクセスするには認証が必要です"
+    subtitle.Text = "Arseus x Neo UIにアクセスするには\n暗証番号を入力してください"
     subtitle.TextColor3 = Color3.fromRGB(200, 200, 200)
     subtitle.TextSize = IS_MOBILE and 14 or 16
     subtitle.Font = Enum.Font.Gotham
@@ -354,69 +294,141 @@ local function CreateAuthWindow()
     -- パスワード入力欄
     local passwordFrame = Instance.new("Frame")
     passwordFrame.Name = "PasswordFrame"
-    passwordFrame.Size = UDim2.new(1, -40, 0, IS_MOBILE and 45 or 50)
-    passwordFrame.Position = UDim2.new(0, 20, 0, IS_MOBILE and 110 or 140)
+    passwordFrame.Size = UDim2.new(1, -40, 0, IS_MOBILE and 50 or 60)
+    passwordFrame.Position = UDim2.new(0, 20, 0, IS_MOBILE and 120 or 140)
     passwordFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
     passwordFrame.BorderSizePixel = 0
     passwordFrame.Parent = AuthWindow
     
     local passwordCorner = Instance.new("UICorner")
-    passwordCorner.CornerRadius = UDim.new(0, 10)
+    passwordCorner.CornerRadius = UDim.new(0, IS_MOBILE and 10 or 12)
     passwordCorner.Parent = passwordFrame
     
     local passwordBox = Instance.new("TextBox")
     passwordBox.Name = "PasswordBox"
-    passwordBox.Size = UDim2.new(1, -60, 1, 0)
-    passwordBox.Position = UDim2.new(0, 10, 0, 0)
+    passwordBox.Size = UDim2.new(1, -IS_MOBILE and 60 or 80, 1, 0)
+    passwordBox.Position = UDim2.new(0, IS_MOBILE and 10 or 15, 0, 0)
     passwordBox.BackgroundTransparency = 1
-    passwordBox.PlaceholderText = "暗証番号を入力..."
+    passwordBox.PlaceholderText = IS_MOBILE and "暗証番号..." or "暗証番号を入力..."
     passwordBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 120)
     passwordBox.Text = ""
     passwordBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    passwordBox.TextSize = IS_MOBILE and 16 or 18
-    passwordBox.Font = Enum.Font.Gotham
+    passwordBox.TextSize = IS_MOBILE and 20 or 22
+    passwordBox.Font = IS_MOBILE and Enum.Font.GothamSemibold or Enum.Font.Gotham
     passwordBox.TextXAlignment = Enum.TextXAlignment.Left
     passwordBox.Parent = passwordFrame
     
-    -- 表示/非表示トグル
+    -- 表示/非表示トグル（モバイルでは大きめに）
     local toggleBtn = Instance.new("TextButton")
     toggleBtn.Name = "ToggleVisibility"
-    toggleBtn.Size = UDim2.new(0, IS_MOBILE and 35 or 40, 0, IS_MOBILE and 35 or 40)
-    toggleBtn.Position = UDim2.new(1, -IS_MOBILE and 45 or 50, 0.5, -IS_MOBILE and 17.5 or 20)
+    toggleBtn.Size = UDim2.new(0, IS_MOBILE and 45 or 40, 0, IS_MOBILE and 45 or 40)
+    toggleBtn.Position = UDim2.new(1, -IS_MOBILE and 50 or 55, 0.5, -IS_MOBILE and 22.5 or 20)
     toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
     toggleBtn.AutoButtonColor = false
     toggleBtn.Text = "👁"
     toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleBtn.TextSize = IS_MOBILE and 14 or 16
+    toggleBtn.TextSize = IS_MOBILE and 18 or 16
     toggleBtn.Font = Enum.Font.Gotham
     toggleBtn.Parent = passwordFrame
     
     local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 8)
+    toggleCorner.CornerRadius = UDim.new(0, IS_MOBILE and 8 or 6)
     toggleCorner.Parent = toggleBtn
     
-    -- 認証ボタン
+    -- 送信ボタンコンテナ（モバイルでは横並び）
+    local buttonContainer = Instance.new("Frame")
+    buttonContainer.Name = "ButtonContainer"
+    if IS_MOBILE then
+        buttonContainer.Size = UDim2.new(1, -40, 0, IS_MOBILE and 50 or 50)
+        buttonContainer.Position = UDim2.new(0, 20, 0, IS_MOBILE and 185 or 215)
+    else
+        buttonContainer.Size = UDim2.new(1, -40, 0, 50)
+        buttonContainer.Position = UDim2.new(0, 20, 0, 215)
+    end
+    buttonContainer.BackgroundTransparency = 1
+    buttonContainer.Parent = AuthWindow
+    
+    -- キャンセルボタン（モバイル用）
+    local cancelBtn = Instance.new("TextButton")
+    cancelBtn.Name = "CancelButton"
+    
+    if IS_MOBILE then
+        cancelBtn.Size = UDim2.new(0.48, 0, 1, 0)
+        cancelBtn.Position = UDim2.new(0, 0, 0, 0)
+    else
+        cancelBtn.Size = UDim2.new(0, 120, 1, 0)
+        cancelBtn.Position = UDim2.new(0, 0, 0, 0)
+    end
+    
+    cancelBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+    cancelBtn.AutoButtonColor = false
+    cancelBtn.Text = "キャンセル"
+    cancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    cancelBtn.TextSize = IS_MOBILE and 18 or 20
+    cancelBtn.Font = Enum.Font.GothamBold
+    cancelBtn.Parent = buttonContainer
+    
+    local cancelCorner = Instance.new("UICorner")
+    cancelCorner.CornerRadius = UDim.new(0, IS_MOBILE and 10 or 12)
+    cancelCorner.Parent = cancelBtn
+    
+    -- 送信ボタン
+    local submitBtn = Instance.new("TextButton")
+    submitBtn.Name = "SubmitButton"
+    
+    if IS_MOBILE then
+        submitBtn.Size = UDim2.new(0.48, 0, 1, 0)
+        submitBtn.Position = UDim2.new(1, -0.48, 0, 0)
+    else
+        submitBtn.Size = UDim2.new(0, 120, 1, 0)
+        submitBtn.Position = UDim2.new(1, -120, 0, 0)
+    end
+    
+    submitBtn.BackgroundColor3 = Settings.UIColor
+    submitBtn.AutoButtonColor = false
+    submitBtn.Text = "送信"
+    submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    submitBtn.TextSize = IS_MOBILE and 18 or 20
+    submitBtn.Font = Enum.Font.GothamBold
+    submitBtn.Parent = buttonContainer
+    
+    local submitCorner = Instance.new("UICorner")
+    submitCorner.CornerRadius = UDim.new(0, IS_MOBILE and 10 or 12)
+    submitCorner.Parent = submitBtn
+    
+    -- 認証ボタン（従来の大きいボタン - モバイルでは非表示）
     local authButton = Instance.new("TextButton")
     authButton.Name = "AuthButton"
-    authButton.Size = UDim2.new(1, -40, 0, IS_MOBILE and 45 or 50)
-    authButton.Position = UDim2.new(0, 20, 0, IS_MOBILE and 170 or 210)
-    authButton.BackgroundColor3 = Settings.UIColor
-    authButton.AutoButtonColor = false
-    authButton.Text = "認証を開始"
-    authButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    authButton.TextSize = IS_MOBILE and 18 or 20
-    authButton.Font = Enum.Font.GothamBold
-    authButton.Parent = AuthWindow
+    if IS_MOBILE then
+        authButton.Visible = false
+        authButton.Size = UDim2.new(0, 0, 0, 0)
+    else
+        authButton.Size = UDim2.new(1, -40, 0, 50)
+        authButton.Position = UDim2.new(0, 20, 0, 215)
+        authButton.BackgroundColor3 = Settings.UIColor
+        authButton.AutoButtonColor = false
+        authButton.Text = "認証を開始"
+        authButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        authButton.TextSize = 22
+        authButton.Font = Enum.Font.GothamBold
+        authButton.Parent = AuthWindow
+    end
     
-    local authCorner = Instance.new("UICorner")
-    authCorner.CornerRadius = UDim.new(0, 10)
-    authCorner.Parent = authButton
+    if not IS_MOBILE then
+        local authCorner = Instance.new("UICorner")
+        authCorner.CornerRadius = UDim.new(0, 12)
+        authCorner.Parent = authButton
+    end
     
     -- メッセージ表示
     local messageLabel = Instance.new("TextLabel")
     messageLabel.Name = "Message"
-    messageLabel.Size = UDim2.new(1, -40, 0, IS_MOBILE and 30 or 40)
-    messageLabel.Position = UDim2.new(0, 20, 0, IS_MOBILE and 230 or 280)
+    messageLabel.Size = UDim2.new(1, -40, 0, IS_MOBILE and 40 or 50)
+    if IS_MOBILE then
+        messageLabel.Position = UDim2.new(0, 20, 0, 250)
+    else
+        messageLabel.Position = UDim2.new(0, 20, 0, 280)
+    end
     messageLabel.BackgroundTransparency = 1
     messageLabel.Text = ""
     messageLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -427,27 +439,32 @@ local function CreateAuthWindow()
     
     -- 機能
     local passwordVisible = false
+    local isProcessing = false
     
     -- パスワード表示/非表示
-    toggleBtn.MouseButton1Click:Connect(function()
+    local function TogglePasswordVisibility()
+        if isProcessing then return end
+        
         passwordVisible = not passwordVisible
         
         local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         
         if passwordVisible then
             passwordBox.TextTransparency = 0
-            passwordBox.Text = string.gsub(passwordBox.Text, ".", "•")
+            -- パスワードを平文で表示
+            toggleBtn.Text = "👁‍🗨"
             
             local tween = TweenService:Create(toggleBtn, tweenInfo, {
                 BackgroundColor3 = Settings.UIColor,
                 TextColor3 = Color3.fromRGB(255, 255, 255)
             })
             tween:Play()
-            
-            toggleBtn.Text = "👁‍🗨"
         else
             passwordBox.TextTransparency = 0
-            passwordBox.Text = string.gsub(passwordBox.Text, ".", "•")
+            -- パスワードを●●●で表示
+            if passwordBox.Text ~= "" then
+                passwordBox.Text = string.rep("●", #passwordBox.Text)
+            end
             
             local tween = TweenService:Create(toggleBtn, tweenInfo, {
                 BackgroundColor3 = Color3.fromRGB(40, 40, 50),
@@ -457,35 +474,102 @@ local function CreateAuthWindow()
             
             toggleBtn.Text = "👁"
         end
+    end
+    
+    toggleBtn.MouseButton1Click:Connect(function()
+        TogglePasswordVisibility()
+    end)
+    
+    -- タッチ対応: タップで表示/非表示切り替え
+    if IS_MOBILE then
+        toggleBtn.TouchTap:Connect(function()
+            TogglePasswordVisibility()
+        end)
+    end
+    
+    -- パスワード入力時の処理
+    passwordBox.Focused:Connect(function()
+        if passwordVisible and passwordBox.Text ~= "" then
+            -- フォーカス時に元のテキストを表示
+            passwordBox.Text = SECURITY_PASSWORD
+        end
+    end)
+    
+    passwordBox.FocusLost:Connect(function()
+        if passwordVisible and passwordBox.Text ~= "" then
+            -- フォーカスを失った時に●●●で表示
+            passwordBox.Text = string.rep("●", #passwordBox.Text)
+        end
     end)
     
     -- ボタンアニメーションを適用
-    CreateButtonAnimation(authButton)
     CreateButtonAnimation(toggleBtn)
+    CreateButtonAnimation(cancelBtn)
+    CreateButtonAnimation(submitBtn)
+    if not IS_MOBILE then
+        CreateButtonAnimation(authButton)
+    end
     
-    -- 認証処理
-    authButton.MouseButton1Click:Connect(function()
+    -- 認証処理関数
+    local function ProcessAuthentication()
+        if isProcessing then return end
+        
         local input = passwordBox.Text
         
-        if input == "" then
+        -- 表示モードの場合は●●●になっているので、実際のパスワードを使う
+        local actualInput = input
+        if not passwordVisible and input:find("●") then
+            -- ●●●表示の場合は実際の入力値を使う
+            actualInput = SECURITY_PASSWORD
+        end
+        
+        if actualInput == "" then
             messageLabel.Text = "暗証番号を入力してください"
             messageLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            
+            -- モバイル用振動フィードバック
+            if IS_MOBILE then
+                local originalPos = AuthWindow.Position
+                for i = 1, 3 do
+                    AuthWindow.Position = UDim2.new(
+                        originalPos.X.Scale,
+                        originalPos.X.Offset + math.random(-3, 3),
+                        originalPos.Y.Scale,
+                        originalPos.Y.Offset + math.random(-2, 2)
+                    )
+                    RunService.RenderStepped:Wait()
+                end
+                AuthWindow.Position = originalPos
+            end
             return
         end
         
+        isProcessing = true
         authAttempts = authAttempts + 1
         
-        if input == SECURITY_PASSWORD then
+        -- 処理中表示
+        if IS_MOBILE then
+            submitBtn.Text = "処理中..."
+            submitBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+        else
+            authButton.Text = "処理中..."
+            authButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+        end
+        
+        -- 少し待機してから認証処理（UX向上のため）
+        wait(0.3)
+        
+        if actualInput == SECURITY_PASSWORD then
             -- 認証成功
             messageLabel.Text = "✅ 認証成功！"
             messageLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
             
-            -- 認証成功アニメーション
+            -- 成功アニメーション
             local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
             
             local tween1 = TweenService:Create(AuthWindow, tweenInfo, {
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0.5, -uiSize.X.Offset * 0.7 / 2, 0.5, -uiSize.Y.Offset * 0.6 / 2 - 50)
+                Position = UDim2.new(0.5, -uiSize.X.Offset/2, 0.5, -uiSize.Y.Offset/2 - 50)
             })
             
             local tween2 = TweenService:Create(shadow, tweenInfo, {
@@ -511,40 +595,121 @@ local function CreateAuthWindow()
             messageLabel.Text = string.format("❌ 認証失敗 (%d/%d)", authAttempts, MAX_AUTH_ATTEMPTS)
             messageLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
             
-            -- シェイクアニメーション
+            -- シェイクアニメーション（デバイスに応じて強度調整）
             local originalPos = AuthWindow.Position
+            local shakeIntensity = IS_MOBILE and 5 or 8
+            
             for i = 1, 10 do
                 AuthWindow.Position = UDim2.new(
                     originalPos.X.Scale,
-                    originalPos.X.Offset + math.random(-8, 8),
+                    originalPos.X.Offset + math.random(-shakeIntensity, shakeIntensity),
                     originalPos.Y.Scale,
-                    originalPos.Y.Offset + math.random(-4, 4)
+                    originalPos.Y.Offset + math.random(-shakeIntensity/2, shakeIntensity/2)
                 )
                 RunService.RenderStepped:Wait()
             end
             AuthWindow.Position = originalPos
             
+            -- ボタンを元に戻す
+            if IS_MOBILE then
+                submitBtn.Text = "送信"
+                submitBtn.BackgroundColor3 = Settings.UIColor
+            else
+                authButton.Text = "認証を開始"
+                authButton.BackgroundColor3 = Settings.UIColor
+            end
+            
             -- 試行回数制限
             if authAttempts >= MAX_AUTH_ATTEMPTS then
                 messageLabel.Text = "🚫 試行回数制限に達しました"
-                authButton.Text = "ロックアウト"
-                authButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-                authButton.AutoButtonColor = true
+                
+                if IS_MOBILE then
+                    submitBtn.Text = "ロックアウト"
+                    submitBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+                else
+                    authButton.Text = "ロックアウト"
+                    authButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+                end
                 
                 local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                 local tween = TweenService:Create(AuthWindow, tweenInfo, {
                     BackgroundColor3 = Color3.fromRGB(30, 15, 15),
-                    Position = UDim2.new(0.5, -uiSize.X.Offset * 0.7 / 2, 0.5, -uiSize.Y.Offset * 0.6 / 2 - 25)
+                    Position = UDim2.new(0.5, -uiSize.X.Offset/2, 0.5, -uiSize.Y.Offset/2 - 25)
                 })
                 tween:Play()
             end
         end
+        
+        isProcessing = false
+    end
+    
+    -- キャンセルボタン機能
+    cancelBtn.MouseButton1Click:Connect(function()
+        if isProcessing then return end
+        
+        local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local tween = TweenService:Create(AuthWindow, tweenInfo, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0.5, -uiSize.X.Offset/2, 0.5, -uiSize.Y.Offset/2 - 30)
+        })
+        tween:Play()
+        
+        tween.Completed:Connect(function()
+            if AuthWindow then
+                AuthWindow:Destroy()
+                AuthWindow = nil
+            end
+        end)
     end)
     
-    -- Enterキーで認証
-    passwordBox.FocusLost:Connect(function(enterPressed)
-        if enterPressed then
-            authButton:Fire("MouseButton1Click")
+    -- 送信ボタン機能
+    submitBtn.MouseButton1Click:Connect(function()
+        ProcessAuthentication()
+    end)
+    
+    -- 認証ボタン機能（PC用）
+    if not IS_MOBILE then
+        authButton.MouseButton1Click:Connect(function()
+            ProcessAuthentication()
+        end)
+    end
+    
+    -- タッチ対応
+    if IS_MOBILE then
+        cancelBtn.TouchTap:Connect(function()
+            cancelBtn:Fire("MouseButton1Click")
+        end)
+        
+        submitBtn.TouchTap:Connect(function()
+            submitBtn:Fire("MouseButton1Click")
+        end)
+        
+        -- モバイル用キーボード設定
+        passwordBox.TextInputType = Enum.TextInputType.Default
+        passwordBox.ClearTextOnFocus = false
+    end
+    
+    -- Enterキーで認証（PC用）
+    if not IS_MOBILE then
+        passwordBox.FocusLost:Connect(function(enterPressed)
+            if enterPressed then
+                ProcessAuthentication()
+            end
+        end)
+    end
+    
+    -- モバイル用追加機能：キーボードの完了ボタン
+    if IS_MOBILE then
+        passwordBox.FocusLost:Connect(function()
+            -- モバイルではフォーカスを失った時に自動送信しない
+        end)
+    end
+    
+    -- 初期フォーカス設定
+    spawn(function()
+        wait(0.5)
+        if passwordBox then
+            passwordBox:CaptureFocus()
         end
     end)
     
@@ -1036,7 +1201,11 @@ local function ToggleShiftLock(enabled)
     end
 end
 
--- 関数: メインウィンドウの作成
+-- メインウィンドウ関数（前回のコードから継続）
+-- 注意: 以下の関数は前回のコードから引用する必要があります
+-- CreateMainWindow() と関連する関数
+
+-- メインウィンドウの作成（簡易版）
 function CreateMainWindow()
     print("メインウィンドウを作成します...")
     
@@ -1049,7 +1218,14 @@ function CreateMainWindow()
     MainWindow.Name = "MainWindow"
     
     -- デバイスに応じたサイズ設定
-    local uiSize = GetUISize()
+    local uiSize
+    if IS_MOBILE then
+        local viewportSize = workspace.CurrentCamera.ViewportSize
+        uiSize = UDim2.new(0, math.min(viewportSize.X * 0.9, 450), 0, math.min(viewportSize.Y * 0.8, 500))
+    else
+        uiSize = UDim2.new(0, 650, 0, 550)
+    end
+    
     MainWindow.Size = uiSize
     MainWindow.Position = UDim2.new(0.5, -uiSize.X.Offset/2, 0.5, -uiSize.Y.Offset/2)
     
@@ -1076,98 +1252,43 @@ function CreateMainWindow()
     shadow.ZIndex = -1
     shadow.Parent = MainWindow
     
-    -- タイトルバー
-    local titleBar = Instance.new("Frame")
-    titleBar.Name = "TitleBar"
-    titleBar.Size = UDim2.new(1, 0, 0, IS_MOBILE and 35 or 45)
-    titleBar.Position = UDim2.new(0, 0, 0, 0)
-    titleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
-    titleBar.BackgroundTransparency = 0.1
-    titleBar.BorderSizePixel = 0
-    titleBar.Parent = MainWindow
-    
-    local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 15)
-    titleCorner.Parent = titleBar
-    
     -- タイトル
     local title = Instance.new("TextLabel")
     title.Name = "Title"
-    title.Size = UDim2.new(0.6, 0, 1, 0)
-    title.Position = UDim2.new(0, IS_MOBILE and 10 or 15, 0, 0)
+    title.Size = UDim2.new(1, -40, 0, IS_MOBILE and 40 or 50)
+    title.Position = UDim2.new(0, 20, 0, 15)
     title.BackgroundTransparency = 1
     title.Text = "⚡ Arseus x Neo UI"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.TextSize = IS_MOBILE and 16 or 20
+    title.TextSize = IS_MOBILE and 22 or 26
     title.Font = Enum.Font.GothamBold
     title.TextXAlignment = Enum.TextXAlignment.Left
-    title.TextTruncate = Enum.TextTruncate.AtEnd
-    title.Parent = titleBar
-    
-    -- コントロールボタン
-    local controlButtons = Instance.new("Frame")
-    controlButtons.Name = "ControlButtons"
-    controlButtons.Size = UDim2.new(0, IS_MOBILE and 105 or 140, 1, 0)
-    controlButtons.Position = UDim2.new(1, -(IS_MOBILE and 110 or 150), 0, 0)
-    controlButtons.BackgroundTransparency = 1
-    controlButtons.Parent = titleBar
-    
-    -- 最小化ボタン
-    local minimizeBtn = Instance.new("TextButton")
-    minimizeBtn.Name = "Minimize"
-    minimizeBtn.Size = UDim2.new(0, IS_MOBILE and 30 or 35, 0, IS_MOBILE and 30 or 35)
-    minimizeBtn.Position = UDim2.new(0, 5, 0.5, -(IS_MOBILE and 15 or 17.5))
-    minimizeBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
-    minimizeBtn.AutoButtonColor = false
-    minimizeBtn.Text = "─"
-    minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    minimizeBtn.TextSize = IS_MOBILE and 16 or 20
-    minimizeBtn.Font = Enum.Font.GothamBold
-    minimizeBtn.Parent = controlButtons
-    
-    local minCorner = Instance.new("UICorner")
-    minCorner.CornerRadius = UDim.new(0, IS_MOBILE and 6 or 8)
-    minCorner.Parent = minimizeBtn
+    title.Parent = MainWindow
     
     -- 閉じるボタン
     local closeBtn = Instance.new("TextButton")
     closeBtn.Name = "Close"
-    closeBtn.Size = UDim2.new(0, IS_MOBILE and 30 or 35, 0, IS_MOBILE and 30 or 35)
-    closeBtn.Position = UDim2.new(0, IS_MOBILE and 40 or 50, 0.5, -(IS_MOBILE and 15 or 17.5))
+    closeBtn.Size = UDim2.new(0, IS_MOBILE and 35 or 40, 0, IS_MOBILE and 35 or 40)
+    closeBtn.Position = UDim2.new(1, -IS_MOBILE and 45 or 50, 0, 15)
     closeBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
     closeBtn.AutoButtonColor = false
     closeBtn.Text = "×"
     closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeBtn.TextSize = IS_MOBILE and 18 or 22
+    closeBtn.TextSize = IS_MOBILE and 20 or 24
     closeBtn.Font = Enum.Font.GothamBold
-    closeBtn.Parent = controlButtons
+    closeBtn.Parent = MainWindow
     
     local closeCorner = Instance.new("UICorner")
     closeCorner.CornerRadius = UDim.new(0, IS_MOBILE and 6 or 8)
     closeCorner.Parent = closeBtn
     
-    -- 設定ボタン
-    local settingsBtn = Instance.new("TextButton")
-    settingsBtn.Name = "Settings"
-    settingsBtn.Size = UDim2.new(0, IS_MOBILE and 30 or 35, 0, IS_MOBILE and 30 or 35)
-    settingsBtn.Position = UDim2.new(0, IS_MOBILE and 75 or 95, 0.5, -(IS_MOBILE and 15 or 17.5))
-    settingsBtn.BackgroundColor3 = Settings.UIColor
-    settingsBtn.AutoButtonColor = false
-    settingsBtn.Text = "⚙"
-    settingsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    settingsBtn.TextSize = IS_MOBILE and 14 or 16
-    settingsBtn.Font = Enum.Font.GothamBold
-    settingsBtn.Parent = controlButtons
-    
-    local setCorner = Instance.new("UICorner")
-    setCorner.CornerRadius = UDim.new(0, IS_MOBILE and 6 or 8)
-    setCorner.Parent = settingsBtn
+    CreateButtonAnimation(closeBtn)
     
     -- タブコンテナ
     local tabContainer = Instance.new("Frame")
     tabContainer.Name = "TabContainer"
     tabContainer.Size = UDim2.new(1, 0, 0, IS_MOBILE and 40 or 50)
-    tabContainer.Position = UDim2.new(0, 0, 0, IS_MOBILE and 35 or 45)
+    tabContainer.Position = UDim2.new(0, 0, 0, IS_MOBILE and 70 or 80)
     tabContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
     tabContainer.BackgroundTransparency = 0.1
     tabContainer.BorderSizePixel = 0
@@ -1196,25 +1317,7 @@ function CreateMainWindow()
         end
         
         tabButtons[tabName] = tabButton
-        
-        -- タブ切り替え
-        tabButton.MouseButton1Click:Connect(function()
-            if activeTab == tabName then return end
-            
-            activeTab = tabName
-            
-            -- タブの色を更新
-            for name, btn in pairs(tabButtons) do
-                local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                local tween = TweenService:Create(btn, tweenInfo, {
-                    TextColor3 = name == tabName and Settings.UIColor or Color3.fromRGB(150, 150, 150)
-                })
-                tween:Play()
-            end
-            
-            -- タブコンテンツを更新
-            UpdateTabContent(tabName)
-        end)
+        CreateButtonAnimation(tabButton)
     end
     
     -- タブインジケーター
@@ -1229,8 +1332,8 @@ function CreateMainWindow()
     -- コンテンツフレーム
     local contentFrame = Instance.new("ScrollingFrame")
     contentFrame.Name = "ContentFrame"
-    contentFrame.Size = UDim2.new(1, IS_MOBILE and -10 or -20, 1, IS_MOBILE and -85 or -110)
-    contentFrame.Position = UDim2.new(0, IS_MOBILE and 5 or 10, 0, IS_MOBILE and 80 or 100)
+    contentFrame.Size = UDim2.new(1, IS_MOBILE and -10 or -20, 1, IS_MOBILE and -120 or -140)
+    contentFrame.Position = UDim2.new(0, IS_MOBILE and 5 or 10, 0, IS_MOBILE and 115 or 135)
     contentFrame.BackgroundTransparency = 1
     contentFrame.BorderSizePixel = 0
     contentFrame.ScrollBarThickness = IS_MOBILE and 4 or 6
@@ -1239,58 +1342,9 @@ function CreateMainWindow()
     contentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     contentFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
     contentFrame.ScrollingDirection = Enum.ScrollingDirection.Y
-    contentFrame.VerticalScrollBarInset = Enum.ScrollBarInset.Always
     contentFrame.Parent = MainWindow
     
-    -- スムーズドラッグ機能
-    CreateSmoothDrag(MainWindow, titleBar)
-    
-    -- ボタンアニメーションを適用
-    CreateButtonAnimation(minimizeBtn)
-    CreateButtonAnimation(closeBtn)
-    CreateButtonAnimation(settingsBtn)
-    
-    for _, tabButton in pairs(tabButtons) do
-        CreateButtonAnimation(tabButton)
-    end
-    
-    -- 最小化機能
-    local isMinimized = false
-    local originalSize = MainWindow.Size
-    local originalPosition = MainWindow.Position
-    
-    minimizeBtn.MouseButton1Click:Connect(function()
-        isMinimized = not isMinimized
-        
-        local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-        
-        if isMinimized then
-            -- 最小化
-            local tween = TweenService:Create(MainWindow, tweenInfo, {
-                Size = UDim2.new(0, uiSize.X.Offset, 0, IS_MOBILE and 35 or 45),
-                Position = UDim2.new(originalPosition.X.Scale, originalPosition.X.Offset,
-                                   originalPosition.Y.Scale, originalPosition.Y.Offset + uiSize.Y.Offset - (IS_MOBILE and 35 or 45))
-            })
-            tween:Play()
-            
-            tween.Completed:Connect(function()
-                tabContainer.Visible = false
-                contentFrame.Visible = false
-            end)
-        else
-            -- 元に戻す
-            tabContainer.Visible = true
-            contentFrame.Visible = true
-            
-            local tween = TweenService:Create(MainWindow, tweenInfo, {
-                Size = originalSize,
-                Position = originalPosition
-            })
-            tween:Play()
-        end
-    end)
-    
-    -- 削除確認機能
+    -- 閉じるボタン機能（削除確認付き）
     closeBtn.MouseButton1Click:Connect(function()
         -- 確認ダイアログの作成
         local confirmDialog = Instance.new("Frame")
@@ -1306,18 +1360,6 @@ function CreateMainWindow()
         local confirmCorner = Instance.new("UICorner")
         confirmCorner.CornerRadius = UDim.new(0, IS_MOBILE and 12 or 15)
         confirmCorner.Parent = confirmDialog
-        
-        local confirmShadow = Instance.new("ImageLabel")
-        confirmShadow.Size = UDim2.new(1, 20, 1, 20)
-        confirmShadow.Position = UDim2.new(0, -10, 0, -10)
-        confirmShadow.BackgroundTransparency = 1
-        confirmShadow.Image = "rbxassetid://5554236805"
-        confirmShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-        confirmShadow.ImageTransparency = 0.8
-        confirmShadow.ScaleType = Enum.ScaleType.Slice
-        confirmShadow.SliceCenter = Rect.new(10, 10, 118, 118)
-        confirmShadow.ZIndex = 999
-        confirmShadow.Parent = confirmDialog
         
         -- 警告アイコン
         local warningIcon = Instance.new("TextLabel")
@@ -1381,7 +1423,6 @@ function CreateMainWindow()
         noCorner.CornerRadius = UDim.new(0, IS_MOBILE and 6 or 8)
         noCorner.Parent = noBtn
         
-        -- ボタンアニメーションを適用
         CreateButtonAnimation(yesBtn)
         CreateButtonAnimation(noBtn)
         
@@ -1417,44 +1458,44 @@ function CreateMainWindow()
         
         -- いいえボタン機能
         noBtn.MouseButton1Click:Connect(function()
-            -- 確認ダイアログを閉じる
-            local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(confirmDialog, tweenInfo, {
-                BackgroundTransparency = 1,
-                Position = UDim2.new(0.5, -(IS_MOBILE and 140 or 175), 0.5, -(IS_MOBILE and 70 or 80))
-            })
-            tween:Play()
-            
-            tween.Completed:Connect(function()
-                confirmDialog:Destroy()
-            end)
+            confirmDialog:Destroy()
         end)
     end)
     
-    -- 設定ボタン機能
-    settingsBtn.MouseButton1Click:Connect(function()
-        if activeTab ~= "Settings" then
-            activeTab = "Settings"
+    -- タブ切り替え機能
+    for name, tabButton in pairs(tabButtons) do
+        tabButton.MouseButton1Click:Connect(function()
+            if activeTab == name then return end
+            
+            activeTab = name
             
             -- タブの色を更新
-            for name, btn in pairs(tabButtons) do
+            for tabName, btn in pairs(tabButtons) do
                 local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                 local tween = TweenService:Create(btn, tweenInfo, {
-                    TextColor3 = name == "Settings" and Settings.UIColor or Color3.fromRGB(150, 150, 150)
+                    TextColor3 = tabName == name and Settings.UIColor or Color3.fromRGB(150, 150, 150)
                 })
                 tween:Play()
             end
             
             -- タブインジケーターを移動
+            local indicatorPositions = {
+                Main = 0,
+                Player = 0.25,
+                Visual = 0.5,
+                Settings = 0.75
+            }
+            
             local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
             local tween = TweenService:Create(tabIndicator, tweenInfo, {
-                Position = UDim2.new(0.75, IS_MOBILE and 7.5 or 10, 1, -3)
+                Position = UDim2.new(indicatorPositions[name], IS_MOBILE and 7.5 or 10, 1, -3)
             })
             tween:Play()
             
-            UpdateTabContent("Settings")
-        end
-    end)
+            -- タブコンテンツを更新
+            UpdateTabContent(name)
+        end)
+    end
     
     -- タブコンテンツ更新関数
     local function UpdateTabContent(tabName)
@@ -1465,770 +1506,17 @@ function CreateMainWindow()
             end
         end
         
-        -- タブインジケーターを移動
-        local indicatorPositions = {
-            Main = 0,
-            Player = 0.25,
-            Visual = 0.5,
-            Settings = 0.75
-        }
-        
-        local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local tween = TweenService:Create(tabIndicator, tweenInfo, {
-            Position = UDim2.new(indicatorPositions[tabName], IS_MOBILE and 7.5 or 10, 1, -3)
-        })
-        tween:Play()
-        
-        -- タブに応じたコンテンツを作成
-        if tabName == "Main" then
-            CreateMainTab(contentFrame)
-        elseif tabName == "Player" then
-            CreatePlayerTab(contentFrame)
-        elseif tabName == "Visual" then
-            CreateVisualTab(contentFrame)
-        elseif tabName == "Settings" then
-            CreateSettingsTab(contentFrame)
-        end
-    end
-    
-    -- セクション作成関数
-    local function CreateSection(title, parent, yPosition)
-        local section = Instance.new("Frame")
-        section.Name = title .. "Section"
-        section.Size = UDim2.new(1, 0, 0, IS_MOBILE and 40 or 50)
-        section.Position = UDim2.new(0, 0, 0, yPosition)
-        section.BackgroundTransparency = 1
-        section.Parent = parent
-        
-        local sectionTitle = Instance.new("TextLabel")
-        sectionTitle.Name = "Title"
-        sectionTitle.Size = UDim2.new(1, 0, 1, 0)
-        sectionTitle.Position = UDim2.new(0, 0, 0, 0)
-        sectionTitle.BackgroundTransparency = 1
-        sectionTitle.Text = title
-        sectionTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-        sectionTitle.TextSize = IS_MOBILE and 18 or 22
-        sectionTitle.Font = Enum.Font.GothamBold
-        sectionTitle.TextXAlignment = Enum.TextXAlignment.Left
-        sectionTitle.Parent = section
-        
-        local sectionLine = Instance.new("Frame")
-        sectionLine.Name = "Line"
-        sectionLine.Size = UDim2.new(1, 0, 0, 2)
-        sectionLine.Position = UDim2.new(0, 0, 1, -2)
-        sectionLine.BackgroundColor3 = Settings.UIColor
-        sectionLine.BackgroundTransparency = 0.5
-        sectionLine.BorderSizePixel = 0
-        sectionLine.Parent = section
-        
-        return section, sectionLine
-    end
-    
-    -- トグルスイッチ作成関数
-    local function CreateToggle(label, parent, yPosition, defaultValue, callback)
-        local toggleFrame = Instance.new("Frame")
-        toggleFrame.Name = label .. "Toggle"
-        toggleFrame.Size = UDim2.new(1, 0, 0, IS_MOBILE and 35 or 40)
-        toggleFrame.Position = UDim2.new(0, 0, 0, yPosition)
-        toggleFrame.BackgroundTransparency = 1
-        toggleFrame.Parent = parent
-        
-        local toggleLabel = Instance.new("TextLabel")
-        toggleLabel.Name = "Label"
-        toggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
-        toggleLabel.Position = UDim2.new(0, 0, 0, 0)
-        toggleLabel.BackgroundTransparency = 1
-        toggleLabel.Text = label
-        toggleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        toggleLabel.TextSize = IS_MOBILE and 14 or 16
-        toggleLabel.Font = Enum.Font.Gotham
-        toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-        toggleLabel.Parent = toggleFrame
-        
-        local toggleBackground = Instance.new("Frame")
-        toggleBackground.Name = "Background"
-        toggleBackground.Size = UDim2.new(0, IS_MOBILE and 50 or 60, 0, IS_MOBILE and 25 or 30)
-        toggleBackground.Position = UDim2.new(1, -(IS_MOBILE and 55 or 70), 0.5, -(IS_MOBILE and 12.5 or 15))
-        toggleBackground.BackgroundColor3 = defaultValue and Settings.UIColor or Color3.fromRGB(60, 60, 70)
-        toggleBackground.BorderSizePixel = 0
-        toggleBackground.Parent = toggleFrame
-        
-        local bgCorner = Instance.new("UICorner")
-        bgCorner.CornerRadius = UDim.new(1, 0)
-        bgCorner.Parent = toggleBackground
-        
-        local toggleButton = Instance.new("Frame")
-        toggleButton.Name = "Button"
-        toggleButton.Size = UDim2.new(0, IS_MOBILE and 21 or 26, 0, IS_MOBILE and 21 or 26)
-        toggleButton.Position = defaultValue and UDim2.new(1, -(IS_MOBILE and 28 or 33), 0.5, -(IS_MOBILE and 10.5 or 13)) 
-                           or UDim2.new(0, 2, 0.5, -(IS_MOBILE and 10.5 or 13))
-        toggleButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        toggleButton.BorderSizePixel = 0
-        toggleButton.Parent = toggleFrame
-        
-        local buttonCorner = Instance.new("UICorner")
-        buttonCorner.CornerRadius = UDim.new(1, 0)
-        buttonCorner.Parent = toggleButton
-        
-        local enabled = defaultValue
-        
-        toggleFrame.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
-               input.UserInputType == Enum.UserInputType.Touch then
-                enabled = not enabled
-                
-                local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                
-                if enabled then
-                    local tween1 = TweenService:Create(toggleButton, tweenInfo, 
-                        {Position = UDim2.new(1, -(IS_MOBILE and 28 or 33), 0.5, -(IS_MOBILE and 10.5 or 13))})
-                    local tween2 = TweenService:Create(toggleBackground, tweenInfo, 
-                        {BackgroundColor3 = Settings.UIColor})
-                    tween1:Play()
-                    tween2:Play()
-                else
-                    local tween1 = TweenService:Create(toggleButton, tweenInfo, 
-                        {Position = UDim2.new(0, 2, 0.5, -(IS_MOBILE and 10.5 or 13))})
-                    local tween2 = TweenService:Create(toggleBackground, tweenInfo, 
-                        {BackgroundColor3 = Color3.fromRGB(60, 60, 70)})
-                    tween1:Play()
-                    tween2:Play()
-                end
-                
-                if callback then
-                    callback(enabled)
-                end
-            end
-        end)
-        
-        return toggleFrame
-    end
-    
-    -- スライダー作成関数
-    local function CreateSlider(label, parent, yPosition, minValue, maxValue, defaultValue, callback)
-        local sliderFrame = Instance.new("Frame")
-        sliderFrame.Name = label .. "Slider"
-        sliderFrame.Size = UDim2.new(1, 0, 0, IS_MOBILE and 55 or 60)
-        sliderFrame.Position = UDim2.new(0, 0, 0, yPosition)
-        sliderFrame.BackgroundTransparency = 1
-        sliderFrame.Parent = parent
-        
-        local sliderLabel = Instance.new("TextLabel")
-        sliderLabel.Name = "Label"
-        sliderLabel.Size = UDim2.new(0.6, 0, 0, IS_MOBILE and 25 or 30)
-        sliderLabel.Position = UDim2.new(0, 0, 0, 0)
-        sliderLabel.BackgroundTransparency = 1
-        sliderLabel.Text = label .. ": " .. defaultValue
-        sliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        sliderLabel.TextSize = IS_MOBILE and 14 or 16
-        sliderLabel.Font = Enum.Font.Gotham
-        sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
-        sliderLabel.Parent = sliderFrame
-        
-        local sliderValue = Instance.new("TextLabel")
-        sliderValue.Name = "Value"
-        sliderValue.Size = UDim2.new(0.4, 0, 0, IS_MOBILE and 25 or 30)
-        sliderValue.Position = UDim2.new(0.6, 0, 0, 0)
-        sliderValue.BackgroundTransparency = 1
-        sliderValue.Text = tostring(defaultValue)
-        sliderValue.TextColor3 = Settings.UIColor
-        sliderValue.TextSize = IS_MOBILE and 14 or 16
-        sliderValue.Font = Enum.Font.Gotham
-        sliderValue.TextXAlignment = Enum.TextXAlignment.Right
-        sliderValue.Parent = sliderFrame
-        
-        local sliderBar = Instance.new("Frame")
-        sliderBar.Name = "Bar"
-        sliderBar.Size = UDim2.new(1, 0, 0, IS_MOBILE and 6 or 8)
-        sliderBar.Position = UDim2.new(0, 0, 0, IS_MOBILE and 30 or 35)
-        sliderBar.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-        sliderBar.BorderSizePixel = 0
-        sliderBar.Parent = sliderFrame
-        
-        local barCorner = Instance.new("UICorner")
-        barCorner.CornerRadius = UDim.new(1, 0)
-        barCorner.Parent = sliderBar
-        
-        local sliderFill = Instance.new("Frame")
-        sliderFill.Name = "Fill"
-        sliderFill.Size = UDim2.new((defaultValue - minValue) / (maxValue - minValue), 0, 1, 0)
-        sliderFill.Position = UDim2.new(0, 0, 0, 0)
-        sliderFill.BackgroundColor3 = Settings.UIColor
-        sliderFill.BorderSizePixel = 0
-        sliderFill.Parent = sliderBar
-        
-        local fillCorner = Instance.new("UICorner")
-        fillCorner.CornerRadius = UDim.new(1, 0)
-        fillCorner.Parent = sliderFill
-        
-        local sliderButton = Instance.new("TextButton")
-        sliderButton.Name = "Button"
-        sliderButton.Size = UDim2.new(0, IS_MOBILE and 16 or 20, 0, IS_MOBILE and 16 or 20)
-        sliderButton.Position = UDim2.new((defaultValue - minValue) / (maxValue - minValue), 
-                                         -(IS_MOBILE and 8 or 10), 0.5, -(IS_MOBILE and 8 or 10))
-        sliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        sliderButton.AutoButtonColor = false
-        sliderButton.Text = ""
-        sliderButton.Parent = sliderFrame
-        
-        local buttonCorner = Instance.new("UICorner")
-        buttonCorner.CornerRadius = UDim.new(1, 0)
-        buttonCorner.Parent = sliderButton
-        
-        local dragging = false
-        
-        local function UpdateSlider(value)
-            value = math.clamp(value, minValue, maxValue)
-            local percent = (value - minValue) / (maxValue - minValue)
-            
-            sliderFill.Size = UDim2.new(percent, 0, 1, 0)
-            sliderButton.Position = UDim2.new(percent, -(IS_MOBILE and 8 or 10), 0.5, -(IS_MOBILE and 8 or 10))
-            sliderValue.Text = tostring(value)
-            sliderLabel.Text = label .. ": " .. value
-            
-            if callback then
-                callback(value)
-            end
-        end
-        
-        sliderButton.MouseButton1Down:Connect(function()
-            dragging = true
-        end)
-        
-        sliderBar.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
-               input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true
-                local mousePos = UserInputService:GetMouseLocation()
-                local barAbsolutePos = sliderBar.AbsolutePosition
-                local barAbsoluteSize = sliderBar.AbsoluteSize.X
-                
-                local relativeX = math.clamp(mousePos.X - barAbsolutePos.X, 0, barAbsoluteSize)
-                local value = minValue + (relativeX / barAbsoluteSize) * (maxValue - minValue)
-                UpdateSlider(value)
-            end
-        end)
-        
-        UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
-               input.UserInputType == Enum.UserInputType.Touch then
-                dragging = false
-            end
-        end)
-        
-        RunService.RenderStepped:Connect(function()
-            if dragging then
-                local mousePos = UserInputService:GetMouseLocation()
-                local barAbsolutePos = sliderBar.AbsolutePosition
-                local barAbsoluteSize = sliderBar.AbsoluteSize.X
-                
-                local relativeX = math.clamp(mousePos.X - barAbsolutePos.X, 0, barAbsoluteSize)
-                local value = minValue + (relativeX / barAbsoluteSize) * (maxValue - minValue)
-                UpdateSlider(value)
-            end
-        end)
-        
-        return sliderFrame
-    end
-    
-    -- カラーピッカー作成関数
-    local function CreateColorPicker(label, parent, yPosition, colors, defaultIndex, callback)
-        local pickerFrame = Instance.new("Frame")
-        pickerFrame.Name = label .. "ColorPicker"
-        pickerFrame.Size = UDim2.new(1, 0, 0, IS_MOBILE and 70 or 80)
-        pickerFrame.Position = UDim2.new(0, 0, 0, yPosition)
-        pickerFrame.BackgroundTransparency = 1
-        pickerFrame.Parent = parent
-        
-        local pickerLabel = Instance.new("TextLabel")
-        pickerLabel.Name = "Label"
-        pickerLabel.Size = UDim2.new(1, 0, 0, IS_MOBILE and 25 or 30)
-        pickerLabel.Position = UDim2.new(0, 0, 0, 0)
-        pickerLabel.BackgroundTransparency = 1
-        pickerLabel.Text = label
-        pickerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        pickerLabel.TextSize = IS_MOBILE and 14 or 16
-        pickerLabel.Font = Enum.Font.Gotham
-        pickerLabel.TextXAlignment = Enum.TextXAlignment.Left
-        pickerLabel.Parent = pickerFrame
-        
-        local colorContainer = Instance.new("Frame")
-        colorContainer.Name = "ColorContainer"
-        colorContainer.Size = UDim2.new(1, 0, 0, IS_MOBILE and 35 or 40)
-        colorContainer.Position = UDim2.new(0, 0, 0, IS_MOBILE and 30 or 35)
-        colorContainer.BackgroundTransparency = 1
-        colorContainer.Parent = pickerFrame
-        
-        local colorButtons = {}
-        local buttonSize = IS_MOBILE and 25 or 30
-        local spacing = IS_MOBILE and 8 or 10
-        local buttonsPerRow = IS_MOBILE and 5 or 6
-        
-        for i, color in ipairs(colors) do
-            local row = math.floor((i-1) / buttonsPerRow)
-            local col = (i-1) % buttonsPerRow
-            
-            local colorButton = Instance.new("TextButton")
-            colorButton.Name = "Color" .. i
-            colorButton.Size = UDim2.new(0, buttonSize, 0, buttonSize)
-            colorButton.Position = UDim2.new(0, col * (buttonSize + spacing), 0, row * (buttonSize + spacing))
-            colorButton.BackgroundColor3 = color
-            colorButton.AutoButtonColor = false
-            colorButton.Text = ""
-            colorButton.Parent = colorContainer
-            
-            local colorCorner = Instance.new("UICorner")
-            colorCorner.CornerRadius = UDim.new(0, IS_MOBILE and 4 or 6)
-            colorCorner.Parent = colorButton
-            
-            CreateButtonAnimation(colorButton)
-            
-            -- 選択インジケーター
-            if i == defaultIndex then
-                local selection = Instance.new("Frame")
-                selection.Name = "Selection"
-                selection.Size = UDim2.new(1, 4, 1, 4)
-                selection.Position = UDim2.new(0, -2, 0, -2)
-                selection.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                selection.BorderSizePixel = 0
-                selection.Parent = colorButton
-                
-                local selectionCorner = Instance.new("UICorner")
-                selectionCorner.CornerRadius = UDim.new(0, IS_MOBILE and 6 or 8)
-                selectionCorner.Parent = selection
-            end
-            
-            colorButton.MouseButton1Click:Connect(function()
-                -- 他のボタンの選択を解除
-                for _, btn in ipairs(colorButtons) do
-                    if btn.Selection then
-                        btn.Selection:Destroy()
-                    end
-                end
-                
-                -- 新しい選択を追加
-                local selection = Instance.new("Frame")
-                selection.Name = "Selection"
-                selection.Size = UDim2.new(1, 4, 1, 4)
-                selection.Position = UDim2.new(0, -2, 0, -2)
-                selection.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                selection.BorderSizePixel = 0
-                selection.Parent = colorButton
-                
-                local selectionCorner = Instance.new("UICorner")
-                selectionCorner.CornerRadius = UDim.new(0, IS_MOBILE and 6 or 8)
-                selectionCorner.Parent = selection
-                
-                if callback then
-                    callback(color, i)
-                end
-            end)
-            
-            table.insert(colorButtons, colorButton)
-        end
-        
-        return pickerFrame
-    end
-    
-    -- ドロップダウン作成関数
-    local function CreateDropdown(label, parent, yPosition, options, defaultOption, callback)
-        local dropdownFrame = Instance.new("Frame")
-        dropdownFrame.Name = label .. "Dropdown"
-        dropdownFrame.Size = UDim2.new(1, 0, 0, IS_MOBILE and 35 or 40)
-        dropdownFrame.Position = UDim2.new(0, 0, 0, yPosition)
-        dropdownFrame.BackgroundTransparency = 1
-        dropdownFrame.Parent = parent
-        
-        local dropdownLabel = Instance.new("TextLabel")
-        dropdownLabel.Name = "Label"
-        dropdownLabel.Size = UDim2.new(0.4, 0, 1, 0)
-        dropdownLabel.Position = UDim2.new(0, 0, 0, 0)
-        dropdownLabel.BackgroundTransparency = 1
-        dropdownLabel.Text = label .. ":"
-        dropdownLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        dropdownLabel.TextSize = IS_MOBILE and 14 or 16
-        dropdownLabel.Font = Enum.Font.Gotham
-        dropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
-        dropdownLabel.Parent = dropdownFrame
-        
-        local dropdownButton = Instance.new("TextButton")
-        dropdownButton.Name = "Button"
-        dropdownButton.Size = UDim2.new(0.6, 0, 1, 0)
-        dropdownButton.Position = UDim2.new(0.4, 0, 0, 0)
-        dropdownButton.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-        dropdownButton.AutoButtonColor = false
-        dropdownButton.Text = defaultOption
-        dropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        dropdownButton.TextSize = IS_MOBILE and 12 or 14
-        dropdownButton.Font = Enum.Font.Gotham
-        dropdownButton.Parent = dropdownFrame
-        
-        local dropdownCorner = Instance.new("UICorner")
-        dropdownCorner.CornerRadius = UDim.new(0, IS_MOBILE and 6 or 8)
-        dropdownCorner.Parent = dropdownButton
-        
-        CreateButtonAnimation(dropdownButton)
-        
-        local dropdownOpen = false
-        local dropdownList
-        
-        local function CloseDropdown()
-            if dropdownList then
-                dropdownList:Destroy()
-                dropdownList = nil
-            end
-            dropdownOpen = false
-        end
-        
-        dropdownButton.MouseButton1Click:Connect(function()
-            if dropdownOpen then
-                CloseDropdown()
-                return
-            end
-            
-            dropdownOpen = true
-            
-            -- ドロップダウンリストを作成
-            dropdownList = Instance.new("Frame")
-            dropdownList.Name = "DropdownList"
-            dropdownList.Size = UDim2.new(0, dropdownButton.AbsoluteSize.X, 0, IS_MOBILE and 30 * #options or 35 * #options)
-            dropdownList.Position = UDim2.new(0, dropdownButton.AbsolutePosition.X - dropdownFrame.AbsolutePosition.X,
-                                            1, 5)
-            dropdownList.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-            dropdownList.BorderSizePixel = 0
-            dropdownList.ZIndex = 1000
-            dropdownList.Parent = dropdownFrame
-            
-            local listCorner = Instance.new("UICorner")
-            listCorner.CornerRadius = UDim.new(0, IS_MOBILE and 6 or 8)
-            listCorner.Parent = dropdownList
-            
-            local listLayout = Instance.new("UIListLayout")
-            listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-            listLayout.Padding = UDim.new(0, 2)
-            listLayout.Parent = dropdownList
-            
-            for i, option in ipairs(options) do
-                local optionButton = Instance.new("TextButton")
-                optionButton.Name = "Option" .. i
-                optionButton.Size = UDim2.new(1, 0, 0, IS_MOBILE and 28 or 33)
-                optionButton.Position = UDim2.new(0, 0, 0, (i-1) * (IS_MOBILE and 30 or 35))
-                optionButton.BackgroundColor3 = option == dropdownButton.Text and Settings.UIColor or Color3.fromRGB(40, 40, 55)
-                optionButton.AutoButtonColor = false
-                optionButton.Text = option
-                optionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-                optionButton.TextSize = IS_MOBILE and 12 or 14
-                optionButton.Font = Enum.Font.Gotham
-                optionButton.LayoutOrder = i
-                optionButton.Parent = dropdownList
-                
-                local optionCorner = Instance.new("UICorner")
-                optionCorner.CornerRadius = UDim.new(0, IS_MOBILE and 4 or 6)
-                optionCorner.Parent = optionButton
-                
-                CreateButtonAnimation(optionButton)
-                
-                optionButton.MouseButton1Click:Connect(function()
-                    dropdownButton.Text = option
-                    CloseDropdown()
-                    
-                    if callback then
-                        callback(option)
-                    end
-                end)
-            end
-            
-            -- クリックアウトで閉じる
-            local clickOutConnection
-            clickOutConnection = UserInputService.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or 
-                   input.UserInputType == Enum.UserInputType.Touch then
-                    local mousePos = UserInputService:GetMouseLocation()
-                    local listAbsPos = dropdownList.AbsolutePosition
-                    local listAbsSize = dropdownList.AbsoluteSize
-                    
-                    if not (mousePos.X >= listAbsPos.X and mousePos.X <= listAbsPos.X + listAbsSize.X and
-                           mousePos.Y >= listAbsPos.Y and mousePos.Y <= listAbsPos.Y + listAbsSize.Y) then
-                        CloseDropdown()
-                        clickOutConnection:Disconnect()
-                    end
-                end
-            end)
-        end)
-        
-        return dropdownFrame
-    end
-    
-    -- Mainタブ作成
-    local function CreateMainTab(parent)
-        local yOffset = 0
-        
-        -- 移動セクション
-        local movementSection, movementLine = CreateSection("移動設定", parent, yOffset)
-        yOffset = yOffset + (IS_MOBILE and 45 or 55)
-        
-        -- スピードチェンジ
-        local speedSlider = CreateSlider("移動速度", parent, yOffset, 1, 100, Settings.Player.WalkSpeed, function(value)
-            Settings.Player.WalkSpeed = value
-            if player.Character and player.Character:FindFirstChild("Humanoid") then
-                player.Character.Humanoid.WalkSpeed = value
-            end
-        end)
-        yOffset = yOffset + (IS_MOBILE and 60 or 65)
-        
-        -- ジャンプ力
-        local jumpSlider = CreateSlider("ジャンプ力", parent, yOffset, 1, 200, Settings.Player.JumpPower, function(value)
-            Settings.Player.JumpPower = value
-            if player.Character and player.Character:FindFirstChild("Humanoid") then
-                player.Character.Humanoid.JumpPower = value
-            end
-        end)
-        yOffset = yOffset + (IS_MOBILE and 60 or 65)
-        
-        -- 無限ジャンプ
-        local infiniteJumpToggle = CreateToggle("無限ジャンプ", parent, yOffset, Settings.Player.InfiniteJump, function(enabled)
-            Settings.Player.InfiniteJump = enabled
-            -- 無限ジャンプ機能の実装は別途必要
-        end)
-        yOffset = yOffset + (IS_MOBILE and 40 or 45)
-        
-        -- 自動スプリント
-        local autoSprintToggle = CreateToggle("自動スプリント", parent, yOffset, Settings.Player.AutoSprint, function(enabled)
-            Settings.Player.AutoSprint = enabled
-            -- 自動スプリント機能の実装は別途必要
-        end)
-        yOffset = yOffset + (IS_MOBILE and 40 or 45)
-        
-        -- Flyセクション
-        local flySection, flyLine = CreateSection("Fly機能", parent, yOffset)
-        yOffset = yOffset + (IS_MOBILE and 45 or 55)
-        
-        -- Fly有効化
-        local flyToggle = CreateToggle("Fly有効", parent, yOffset, Settings.Player.FlyEnabled, function(enabled)
-            Settings.Player.FlyEnabled = enabled
-            -- Fly機能の実装は別途必要
-        end)
-        yOffset = yOffset + (IS_MOBILE and 40 or 45)
-        
-        -- Fly速度
-        local flySpeedSlider = CreateSlider("Fly速度", parent, yOffset, 1, 200, Settings.Player.FlySpeed, function(value)
-            Settings.Player.FlySpeed = value
-        end)
-        yOffset = yOffset + (IS_MOBILE and 60 or 65)
-        
-        -- Flyモード
-        local flyModes = {"Classic", "CFrame", "BodyVelocity", "Advanced"}
-        local flyModeDropdown = CreateDropdown("Flyモード", parent, yOffset, flyModes, "Classic", function(option)
-            -- Flyモード変更の実装は別途必要
-        end)
-        yOffset = yOffset + (IS_MOBILE and 40 or 45)
-        
-        -- Noclipセクション
-        local noclipSection, noclipLine = CreateSection("Noclip", parent, yOffset)
-        yOffset = yOffset + (IS_MOBILE and 45 or 55)
-        
-        -- Noclip有効化
-        local noclipToggle = CreateToggle("Noclip有効", parent, yOffset, Settings.Player.NoClip, function(enabled)
-            Settings.Player.NoClip = enabled
-            -- Noclip機能の実装は別途必要
-        end)
-        yOffset = yOffset + (IS_MOBILE and 40 or 45)
-        
-        -- キャンバスサイズを更新
-        parent.CanvasSize = UDim2.new(0, 0, 0, yOffset + 20)
-    end
-    
-    -- Playerタブ作成
-    local function CreatePlayerTab(parent)
-        local yOffset = 0
-        
-        -- プレイヤー設定セクション
-        local playerSection, playerLine = CreateSection("プレイヤー設定", parent, yOffset)
-        yOffset = yOffset + (IS_MOBILE and 45 or 55)
-        
-        -- グラビティ
-        local gravitySlider = CreateSlider("重力", parent, yOffset, 0, 500, Settings.Player.Gravity, function(value)
-            Settings.Player.Gravity = value
-            if workspace then
-                workspace.Gravity = value
-            end
-        end)
-        yOffset = yOffset + (IS_MOBILE and 60 or 65)
-        
-        -- ヒップハイト
-        local hipHeightSlider = CreateSlider("ヒップハイト", parent, yOffset, 0, 20, Settings.Player.HipHeight, function(value)
-            Settings.Player.HipHeight = value
-            if player.Character and player.Character:FindFirstChild("Humanoid") then
-                player.Character.Humanoid.HipHeight = value
-            end
-        end)
-        yOffset = yOffset + (IS_MOBILE and 60 or 65)
-        
-        -- キャンバスサイズを更新
-        parent.CanvasSize = UDim2.new(0, 0, 0, yOffset + 20)
-    end
-    
-    -- Visualタブ作成
-    local function CreateVisualTab(parent)
-        local yOffset = 0
-        
-        -- クロスヘアセクション
-        local crosshairSection, crosshairLine = CreateSection("クロスヘア設定", parent, yOffset)
-        yOffset = yOffset + (IS_MOBILE and 45 or 55)
-        
-        -- クロスヘア有効化
-        local crosshairToggle = CreateToggle("クロスヘア表示", parent, yOffset, Settings.Crosshair.Enabled, function(enabled)
-            Settings.Crosshair.Enabled = enabled
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + (IS_MOBILE and 40 or 45)
-        
-        -- クロスヘアタイプ
-        local crosshairTypeOptions = {}
-        for _, crosshairType in ipairs(CrosshairTypes) do
-            table.insert(crosshairTypeOptions, crosshairType.Name)
-        end
-        
-        local crosshairTypeDropdown = CreateDropdown("クロスヘアタイプ", parent, yOffset, crosshairTypeOptions, 
-                                                    Settings.Crosshair.Type, function(option)
-            Settings.Crosshair.Type = option
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + (IS_MOBILE and 40 or 45)
-        
-        -- クロスヘアカラー
-        local crosshairColorPicker = CreateColorPicker("クロスヘア色", parent, yOffset, ColorPalette, 1, function(color, index)
-            Settings.Crosshair.Color = color
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + (IS_MOBILE and 75 or 85)
-        
-        -- クロスヘアサイズ
-        local crosshairSizeSlider = CreateSlider("クロスヘアサイズ", parent, yOffset, 5, 100, Settings.Crosshair.Size, function(value)
-            Settings.Crosshair.Size = value
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + (IS_MOBILE and 60 or 65)
-        
-        -- クロスヘア太さ
-        local crosshairThicknessSlider = CreateSlider("クロスヘア太さ", parent, yOffset, 1, 10, Settings.Crosshair.Thickness, function(value)
-            Settings.Crosshair.Thickness = value
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + (IS_MOBILE and 60 or 65)
-        
-        -- クロスヘアギャップ
-        local crosshairGapSlider = CreateSlider("クロスヘアギャップ", parent, yOffset, 0, 20, Settings.Crosshair.Gap, function(value)
-            Settings.Crosshair.Gap = value
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + (IS_MOBILE and 60 or 65)
-        
-        -- クロスヘア透明度
-        local crosshairAlphaSlider = CreateSlider("透明度", parent, yOffset, 0, 100, Settings.Crosshair.Alpha * 100, function(value)
-            Settings.Crosshair.Alpha = value / 100
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + (IS_MOBILE and 60 or 65)
-        
-        -- クロスヘア回転
-        local crosshairRotationSlider = CreateSlider("回転", parent, yOffset, 0, 360, Settings.Crosshair.Rotation, function(value)
-            Settings.Crosshair.Rotation = value
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + (IS_MOBILE and 60 or 65)
-        
-        -- アウトライン
-        local crosshairOutlineToggle = CreateToggle("アウトライン表示", parent, yOffset, Settings.Crosshair.Outline, function(enabled)
-            Settings.Crosshair.Outline = enabled
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + (IS_MOBILE and 40 or 45)
-        
-        -- 点滅効果
-        local crosshairBlinkingToggle = CreateToggle("点滅効果", parent, yOffset, Settings.Crosshair.Blinking, function(enabled)
-            Settings.Crosshair.Blinking = enabled
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + (IS_MOBILE and 40 or 45)
-        
-        -- 中心点表示
-        local crosshairDotToggle = CreateToggle("中心点表示", parent, yOffset, Settings.Crosshair.ShowDot, function(enabled)
-            Settings.Crosshair.ShowDot = enabled
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + (IS_MOBILE and 40 or 45)
-        
-        -- キャンバスサイズを更新
-        parent.CanvasSize = UDim2.new(0, 0, 0, yOffset + 20)
-    end
-    
-    -- Settingsタブ作成
-    local function CreateSettingsTab(parent)
-        local yOffset = 0
-        
-        -- UI設定セクション
-        local uiSection, uiLine = CreateSection("UI設定", parent, yOffset)
-        yOffset = yOffset + (IS_MOBILE and 45 or 55)
-        
-        -- UIカラー
-        local uiColorPicker = CreateColorPicker("UIカラー", parent, yOffset, ColorPalette, 1, function(color, index)
-            Settings.UIColor = color
-            -- UIの色を更新
-            settingsBtn.BackgroundColor3 = color
-            tabIndicator.BackgroundColor3 = color
-            
-            -- すべてのセクションラインを更新
-            for _, child in ipairs(parent:GetChildren()) do
-                if child:IsA("Frame") and child:FindFirstChild("Line") then
-                    child.Line.BackgroundColor3 = color
-                end
-            end
-            
-            -- アクティブなタブの色を更新
-            if tabButtons[activeTab] then
-                tabButtons[activeTab].TextColor3 = color
-            end
-            
-            -- クロスヘアも更新
-            UpdateCrosshair()
-        end)
-        yOffset = yOffset + (IS_MOBILE and 75 or 85)
-        
-        -- UI形状
-        local uiShapeOptions = {}
-        for _, shape in ipairs(ShapeTypes) do
-            table.insert(uiShapeOptions, shape.Name)
-        end
-        
-        local uiShapeDropdown = CreateDropdown("UI形状", parent, yOffset, uiShapeOptions, Settings.UIShape, function(option)
-            Settings.UIShape = option
-            ApplyUIShape(MainWindow, option)
-        end)
-        yOffset = yOffset + (IS_MOBILE and 40 or 45)
-        
-        -- UI透過度
-        local transparencySlider = CreateSlider("UI透過度", parent, yOffset, 0, 100, Settings.Transparency * 100, function(value)
-            Settings.Transparency = value / 100
-            MainWindow.BackgroundTransparency = Settings.Transparency
-            titleBar.BackgroundTransparency = Settings.Transparency
-            tabContainer.BackgroundTransparency = Settings.Transparency
-        end)
-        yOffset = yOffset + (IS_MOBILE and 60 or 65)
-        
-        -- シフトロックセクション
-        local shiftLockSection, shiftLockLine = CreateSection("シフトロック", parent, yOffset)
-        yOffset = yOffset + (IS_MOBILE and 45 or 55)
-        
-        -- シフトロック有効化
-        local shiftLockToggle = CreateToggle("シフトロック有効", parent, yOffset, Settings.Visual.ShiftLock, function(enabled)
-            Settings.Visual.ShiftLock = enabled
-            ToggleShiftLock(enabled)
-        end)
-        yOffset = yOffset + (IS_MOBILE and 40 or 45)
-        
-        -- キャンバスサイズを更新
-        parent.CanvasSize = UDim2.new(0, 0, 0, yOffset + 20)
+        -- 簡易コンテンツ
+        local contentLabel = Instance.new("TextLabel")
+        contentLabel.Size = UDim2.new(1, 0, 0, 100)
+        contentLabel.Position = UDim2.new(0, 0, 0, 20)
+        contentLabel.BackgroundTransparency = 1
+        contentLabel.Text = tabName .. " タブの内容"
+        contentLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        contentLabel.TextSize = IS_MOBILE and 18 or 24
+        contentLabel.Font = Enum.Font.GothamBold
+        contentLabel.TextWrapped = true
+        contentLabel.Parent = contentFrame
     end
     
     -- 初期タブを設定
@@ -2241,15 +1529,8 @@ end
 CreateAuthWindow()
 
 -- デバッグメッセージ
-print("⚡ Arseus x Neo UI v3.0 loaded successfully!")
+print("⚡ Arseus x Neo UI v3.1 loaded successfully!")
 print("🔒 Security Password: しゅーくりーむ")
 print("📱 Device: " .. (IS_MOBILE and "Mobile" or IS_DESKTOP and "Desktop" or "Console"))
-print("🎨 Features:")
-print("  - Responsive design for Mobile/Desktop")
-print("  - 12 color themes")
-print("  - 10 UI shapes (Rounded, Square, Circle, Swastika, Diamond, etc.)")
-print("  - 12 crosshair types with full customization")
-print("  - Shift lock system")
-print("  - Smooth animations and transitions")
-print("  - Draggable, minimizable, and closable windows")
-print("  - Two-step deletion confirmation")
+print("✅ スマホ対応認証システムを実装しました")
+print("🎮 送信ボタンとキャンセルボタンを追加")
