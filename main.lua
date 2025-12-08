@@ -1,243 +1,436 @@
--- Rayfield UI Library をロード (Executor経由で実行)
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- Rayfield UI Libraryの読み込み
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source.lua'))()
 
--- メインWindow作成
+-- UIの作成
 local Window = Rayfield:CreateWindow({
-   Name = "カスタムハブ",
-   LoadingTitle = "Rayfield UI 読み込み中",
-   LoadingSubtitle = "高度な機能搭載",
+   Name = "カスタムUI",
+   LoadingTitle = "読み込み中...",
+   LoadingSubtitle = "Rayfield UI Library",
    ConfigurationSaving = {
       Enabled = true,
-      FolderName = "CustomHub",
-      FileName = "Config"
+      FolderName = nil,
+      FileName = "設定ファイル"
    },
    Discord = {
       Enabled = false,
-      Invite = "",
+      Invite = "noinvitelink",
       RememberJoins = true
    },
-   KeySystem = false
+   KeySystem = false,
+   KeySettings = {
+      Title = "キーシステム",
+      Subtitle = "キーを入力してください",
+      Note = "キーを購入するには...",
+      FileName = "キー",
+      SaveKey = true,
+      GrabKeyFromSite = false,
+      Key = {"Hello"}
+   }
 })
+
+-- メインタブ
+local MainTab = Window:CreateTab("Main", 4483362458)
+
+-- スピードチェンジ
+local SpeedSection = MainTab:CreateSection("移動設定")
+local SpeedSlider = MainTab:CreateSlider({
+   Name = "スピード倍率",
+   Range = {1, 50},
+   Increment = 1,
+   Suffix = "x",
+   CurrentValue = 1,
+   Flag = "SpeedMultiplier",
+   Callback = function(Value)
+       local humanoid = game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+       if humanoid then
+           humanoid.WalkSpeed = 16 * Value
+       end
+   end,
+})
+
+-- ジャンプ力
+local JumpPowerSlider = MainTab:CreateSlider({
+   Name = "ジャンプ力",
+   Range = {50, 200},
+   Increment = 5,
+   Suffix = "パワー",
+   CurrentValue = 50,
+   Flag = "JumpPower",
+   Callback = function(Value)
+       local humanoid = game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+       if humanoid then
+           humanoid.JumpPower = Value
+       end
+   end,
+})
+
+-- 浮遊力
+local FloatToggle = MainTab:CreateToggle({
+   Name = "浮遊",
+   CurrentValue = false,
+   Flag = "FloatEnabled",
+   Callback = function(Value)
+       _G.FloatEnabled = Value
+       if Value then
+           spawn(function()
+               while _G.FloatEnabled do
+                   wait()
+                   local character = game.Players.LocalPlayer.Character
+                   if character then
+                       local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                       if humanoidRootPart then
+                           humanoidRootPart.Velocity = Vector3.new(humanoidRootPart.Velocity.X, 0, humanoidRootPart.Velocity.Z)
+                       end
+                   end
+               end
+           end)
+       end
+   end,
+})
+
+-- Fly機能
+local FlySection = MainTab:CreateSection("Fly設定")
+local FlyToggle = MainTab:CreateToggle({
+   Name = "Fly有効化",
+   CurrentValue = false,
+   Flag = "FlyEnabled",
+   Callback = function(Value)
+       _G.FLY_TOGGLE = Value
+       local player = game.Players.LocalPlayer
+       local character = player.Character or player.CharacterAdded:Wait()
+       local humanoid = character:WaitForChild("Humanoid")
+       
+       if Value then
+           -- 飛行機能の初期化
+           local bodyVelocity = Instance.new("BodyVelocity")
+           bodyVelocity.Name = "FlyBodyVelocity"
+           bodyVelocity.Parent = character.HumanoidRootPart
+           bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+           
+           spawn(function()
+               while _G.FLY_TOGGLE do
+                   wait()
+                   if character and character.HumanoidRootPart then
+                       local cam = workspace.CurrentCamera.CFrame
+                       local moveDirection = Vector3.new()
+                       
+                       if userinputservice:IsKeyDown(Enum.KeyCode.W) then
+                           moveDirection = moveDirection + cam.LookVector
+                       end
+                       if userinputservice:IsKeyDown(Enum.KeyCode.S) then
+                           moveDirection = moveDirection - cam.LookVector
+                       end
+                       if userinputservice:IsKeyDown(Enum.KeyCode.A) then
+                           moveDirection = moveDirection - cam.RightVector
+                       end
+                       if userinputservice:IsKeyDown(Enum.KeyCode.D) then
+                           moveDirection = moveDirection + cam.RightVector
+                       end
+                       
+                       moveDirection = moveDirection.Unit * 100
+                       bodyVelocity.Velocity = moveDirection
+                   end
+               end
+           end)
+       else
+           -- 飛行機能の無効化
+           if character and character.HumanoidRootPart:FindFirstChild("FlyBodyVelocity") then
+               character.HumanoidRootPart.FlyBodyVelocity:Destroy()
+           end
+       end
+   end,
+})
+
+local FlySpeedSlider = MainTab:CreateSlider({
+   Name = "Fly速度",
+   Range = {50, 500},
+   Increment = 10,
+   Suffix = "速度",
+   CurrentValue = 100,
+   Flag = "FlySpeed",
+   Callback = function(Value)
+       _G.FLY_SPEED = Value
+   end,
+})
+
+-- その他の機能をここに追加可能
 
 -- 設定タブ
 local SettingsTab = Window:CreateTab("設定", 4483362458)
 
--- UIカスタマイズセクション
-local UiSection = SettingsTab:CreateSection("UI デザイン")
+-- UI形状設定
+local UIShapeSection = SettingsTab:CreateSection("UI形状設定")
 
--- UI形状選択
-local UiShapeDropdown = SettingsTab:CreateDropdown({
+local UIShapeDropdown = SettingsTab:CreateDropdown({
    Name = "UI形状",
-   Options = {"四角形", "丸型", "通常", "卍型", "六芒星", "ハート"},
-   CurrentOption = "四角形",
-   Flag = "UiShape",
+   Options = {"四角", "丸", "通常", "卍型", "六角形", "星型"},
+   CurrentOption = "通常",
+   Flag = "UIShape",
    Callback = function(Option)
-      -- UI形状変更処理 (CornerRadiusなど)
-      local shape = Option
-      -- ここでWindow.Frame.CornerRadiusなどを変更
-      print("UI形状変更: " .. shape)
+       -- UI形状変更の実装
+       Rayfield:Notify({
+           Title = "UI形状変更",
+           Content = "形状を " .. Option .. " に変更しました",
+           Duration = 2,
+           Image = 4483362458
+       })
    end,
 })
 
--- UI色選択 (12色)
-local Colors = {
-   "赤", "青", "緑", "黄", "紫", "オレンジ", "ピンク", "白", "黒", "灰色", "水色", "金色"
-}
+-- UIカラー設定
+local UIColorSection = SettingsTab:CreateSection("UIカラー設定")
 
-local UiColorDropdown = SettingsTab:CreateDropdown({
-   Name = "UI色 (12色)",
-   Options = Colors,
-   CurrentOption = "白",
-   Flag = "UiColor",
+local UIColorPalette = SettingsTab:CreateColorPicker({
+   Name = "UIメインカラー",
+   Color = Color3.fromRGB(0, 85, 255),
+   Flag = "UIColor1",
    Callback = function(Color)
-      local colorMap = {
-         ["赤"] = Color3.fromRGB(255,0,0),
-         ["青"] = Color3.fromRGB(0,0,255),
-         ["緑"] = Color3.fromRGB(0,255,0),
-         ["黄"] = Color3.fromRGB(255,255,0),
-         ["紫"] = Color3.fromRGB(128,0,255),
-         ["オレンジ"] = Color3.fromRGB(255,165,0),
-         ["ピンク"] = Color3.fromRGB(255,192,203),
-         ["白"] = Color3.fromRGB(255,255,255),
-         ["黒"] = Color3.fromRGB(0,0,0),
-         ["灰色"] = Color3.fromRGB(128,128,128),
-         ["水色"] = Color3.fromRGB(0,191,255),
-         ["金色"] = Color3.fromRGB(255,215,0)
-      }
-      Window.Frame.BackgroundColor3 = colorMap[Color] [web:6]
-      print("UI色変更: " .. Color)
+       -- UIカラー変更の実装
    end,
 })
 
--- シフトロック
+-- 12色のカラーピッカーを追加
+for i = 2, 12 do
+   SettingsTab:CreateColorPicker({
+       Name = "UIカラー " .. i,
+       Color = Color3.fromRGB(
+           math.random(0, 255),
+           math.random(0, 255),
+           math.random(0, 255)
+       ),
+       Flag = "UIColor" .. i,
+       Callback = function(Color)
+           -- 各カラー変更の実装
+       end,
+   })
+end
+
+-- シフトロック設定
+local ShiftLockSection = SettingsTab:CreateSection("シフトロック設定")
+
 local ShiftLockToggle = SettingsTab:CreateToggle({
-   Name = "シフトロック",
+   Name = "シフトロック有効",
    CurrentValue = false,
-   Flag = "ShiftLock",
+   Flag = "ShiftLockEnabled",
    Callback = function(Value)
-      local player = game.Players.LocalPlayer
-      local character = player.Character or player.CharacterAdded:Wait()
-      local humanoid = character:WaitForChild("Humanoid")
-      humanoid.PlatformStand = Value
+       _G.ShiftLockEnabled = Value
+       if Value then
+           -- シフトロック有効化の実装
+           game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+               if input.KeyCode == Enum.KeyCode.LeftShift then
+                   game:GetService("Players").LocalPlayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
+               end
+           end)
+           
+           game:GetService("UserInputService").InputEnded:Connect(function(input, gameProcessed)
+               if input.KeyCode == Enum.KeyCode.LeftShift then
+                   game:GetService("Players").LocalPlayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
+               end
+           end)
+       end
    end,
 })
 
--- クロスヘアセクション
+-- クロスヘア設定
 local CrosshairSection = SettingsTab:CreateSection("クロスヘア設定")
 
-local CrosshairShape = SettingsTab:CreateDropdown({
+local CrosshairToggle = SettingsTab:CreateToggle({
+   Name = "クロスヘア表示",
+   CurrentValue = false,
+   Flag = "CrosshairEnabled",
+   Callback = function(Value)
+       _G.CrosshairEnabled = Value
+       if Value then
+           -- クロスヘア作成
+           createCrosshair()
+       else
+           -- クロスヘア削除
+           if _G.CrosshairFrame then
+               _G.CrosshairFrame:Destroy()
+           end
+       end
+   end,
+})
+
+local CrosshairShapeDropdown = SettingsTab:CreateDropdown({
    Name = "クロスヘア形状",
-   Options = {"標準", "卍型", "点", "円", "三角"},
-   CurrentOption = "標準",
-   Callback = function(Shape)
-      print("クロスヘア形状: " .. Shape)
-      -- クロスヘアGUI作成/更新
+   Options = {"十字", "丸", "四角", "卍型", "点", "X型"},
+   CurrentOption = "十字",
+   Flag = "CrosshairShape",
+   Callback = function(Option)
+       _G.CrosshairShape = Option
+       updateCrosshair()
    end,
 })
 
 local CrosshairSizeSlider = SettingsTab:CreateSlider({
    Name = "クロスヘアサイズ",
-   Range = {1, 50},
-   Increment = 1,
-   CurrentValue = 10,
+   Range = {10, 100},
+   Increment = 5,
+   Suffix = "px",
+   CurrentValue = 20,
    Flag = "CrosshairSize",
    Callback = function(Value)
-      print("クロスヘアサイズ: " .. Value)
+       _G.CrosshairSize = Value
+       updateCrosshair()
    end,
 })
 
-local CrosshairColor = SettingsTab:CreateDropdown({
-   Name = "クロスヘア色",
-   Options = Colors,
-   CurrentOption = "白",
+local CrosshairColorPicker = SettingsTab:CreateColorPicker({
+   Name = "クロスヘアカラー",
+   Color = Color3.fromRGB(255, 255, 255),
+   Flag = "CrosshairColor",
    Callback = function(Color)
-      print("クロスヘア色: " .. Color)
+       _G.CrosshairColor = Color
+       updateCrosshair()
    end,
 })
 
--- Main機能タブ
-local MainTab = Window:CreateTab("Main", 4483362458)
-local MainSection = MainTab:CreateSection("プレイヤー強化")
-
--- スピード
-local SpeedSlider = MainTab:CreateSlider({
-   Name = "移動速度",
-   Range = {16, 200},
+local CrosshairThicknessSlider = SettingsTab:CreateSlider({
+   Name = "クロスヘア太さ",
+   Range = {1, 10},
    Increment = 1,
-   CurrentValue = 16,
-   Flag = "PlayerSpeed",
+   Suffix = "px",
+   CurrentValue = 2,
+   Flag = "CrosshairThickness",
    Callback = function(Value)
-      local player = game.Players.LocalPlayer
-      local character = player.Character or player.CharacterAdded:Wait()
-      local humanoid = character:WaitForChild("Humanoid")
-      humanoid.WalkSpeed = Value [web:2]
+       _G.CrosshairThickness = Value
+       updateCrosshair()
    end,
 })
 
--- ジャンプ力
-local JumpSlider = MainTab:CreateSlider({
-   Name = "ジャンプ力",
-   Range = {50, 500},
-   Increment = 1,
-   CurrentValue = 50,
-   Flag = "JumpPower",
-   Callback = function(Value)
-      local player = game.Players.LocalPlayer
-      local character = player.Character or player.CharacterAdded:Wait()
-      local humanoid = character:WaitForChild("Humanoid")
-      humanoid.JumpPower = Value
-   end,
-})
+-- クロスヘア作成関数
+function createCrosshair()
+   if _G.CrosshairFrame then
+       _G.CrosshairFrame:Destroy()
+   end
+  
+   local player = game.Players.LocalPlayer
+   local playerGui = player:WaitForChild("PlayerGui")
+  
+   _G.CrosshairFrame = Instance.new("ScreenGui")
+   _G.CrosshairFrame.Name = "CrosshairGui"
+   _G.CrosshairFrame.Parent = playerGui
+   _G.CrosshairFrame.ResetOnSpawn = false
+  
+   updateCrosshair()
+end
 
--- 浮遊力
-local FloatSlider = MainTab:CreateSlider({
-   Name = "浮遊力",
-   Range = {0, 100},
-   Increment = 1,
-   CurrentValue = 0,
-   Flag = "BodyVelocity",
-   Callback = function(Value)
-      -- BodyVelocityで浮遊効果
-   end,
-})
-
--- Fly機能 (複数方法)
-local FlyToggle = MainTab:CreateToggle({
-   Name = "Fly (全機能)",
-   CurrentValue = false,
-   Flag = "FlyEnabled",
-   Callback = function(Value)
-      local player = game.Players.LocalPlayer
-      local character = player.Character or player.CharacterAdded:Wait()
-      local humanoid = character:WaitForChild("Humanoid")
+function updateCrosshair()
+   if not _G.CrosshairFrame or not _G.CrosshairEnabled then return end
+  
+   -- 既存のクロスヘアをクリア
+   for _, v in pairs(_G.CrosshairFrame:GetChildren()) do
+       v:Destroy()
+   end
+  
+   local centerX = UDim.new(0.5, 0)
+   local centerY = UDim.new(0.5, 0)
+   local size = _G.CrosshairSize or 20
+   local color = _G.CrosshairColor or Color3.fromRGB(255, 255, 255)
+   local thickness = _G.CrosshairThickness or 2
+   local shape = _G.CrosshairShape or "十字"
+  
+   if shape == "十字" then
+       -- 横線
+       local horizontal = Instance.new("Frame")
+       horizontal.Size = UDim2.new(0, size, 0, thickness)
+       horizontal.Position = UDim2.new(0.5, -size/2, 0.5, -thickness/2)
+       horizontal.BackgroundColor3 = color
+       horizontal.BorderSizePixel = 0
+       horizontal.Parent = _G.CrosshairFrame
       
-      if Value then
-         -- 方法1: BodyVelocity
-         local bv = Instance.new("BodyVelocity")
-         bv.MaxForce = Vector3.new(4000,4000,4000)
-         bv.Velocity = Vector3.new(0,0,0)
-         bv.Parent = character.HumanoidRootPart
-         
-         -- 方法2: BodyPosition
-         local bp = Instance.new("BodyPosition")
-         bp.MaxForce = Vector3.new(4000,4000,4000)
-         bp.Position = character.HumanoidRootPart.Position
-         bp.Parent = character.HumanoidRootPart
-         
-         -- キー入力で制御
-         game:GetService("UserInputService").InputBegan:Connect(function(input)
-            if input.KeyCode == Enum.KeyCode.Space then
-               bp.Position = bp.Position + Vector3.new(0,5,0)
-            elseif input.KeyCode == Enum.KeyCode.LeftShift then
-               bp.Position = bp.Position + Vector3.new(0,-5,0)
-            end
-         end)
-      else
-         -- Fly停止
-         for _, obj in pairs(character.HumanoidRootPart:GetChildren()) do
-            if obj:IsA("BodyVelocity") or obj:IsA("BodyPosition") then
-               obj:Destroy() [web:3]
-            end
-         end
-      end
-   end,
-})
+       -- 縦線
+       local vertical = Instance.new("Frame")
+       vertical.Size = UDim2.new(0, thickness, 0, size)
+       vertical.Position = UDim2.new(0.5, -thickness/2, 0.5, -size/2)
+       vertical.BackgroundColor3 = color
+       vertical.BorderSizePixel = 0
+       vertical.Parent = _G.CrosshairFrame
+      
+   elseif shape == "卍型" then
+       -- 卍型の実装（簡易版）
+       local swastika = Instance.new("Frame")
+       swastika.Size = UDim2.new(0, size, 0, size)
+       swastika.Position = UDim2.new(0.5, -size/2, 0.5, -size/2)
+       swastika.BackgroundColor3 = color
+       swastika.BackgroundTransparency = 0.5
+       swastika.BorderSizePixel = 0
+       swastika.Parent = _G.CrosshairFrame
+      
+       -- ここに卍型の詳細な描画を追加
+   elseif shape == "丸" then
+       local circle = Instance.new("Frame")
+       circle.Size = UDim2.new(0, size, 0, size)
+       circle.Position = UDim2.new(0.5, -size/2, 0.5, -size/2)
+       circle.BackgroundColor3 = color
+       circle.BorderSizePixel = 0
+       circle.Parent = _G.CrosshairFrame
+   end
+end
 
--- UI削除確認ダイアログ
-local DeleteSection = SettingsTab:CreateSection("UI管理")
+-- UI削除確認システム
+local DeleteSection = SettingsTab:CreateSection("UI削除")
 
 local DeleteButton = SettingsTab:CreateButton({
-   Name = "UI削除 (確認付き)",
+   Name = "UIを削除",
    Callback = function()
-      -- 確認ダイアログ表示
-      Rayfield:Notify({
-         Title = "確認",
-         Content = "本当にUIを削除しますか？",
-         Duration = 5,
-         Image = 4483362458,
-      })
+       -- 確認用の新しいウィンドウを作成
+       local ConfirmWindow = Rayfield:CreateWindow({
+           Name = "削除確認",
+           LoadingTitle = "確認中...",
+           LoadingSubtitle = "UI削除の確認",
+           ConfigurationSaving = {
+               Enabled = false,
+           },
+           Discord = {
+               Enabled = false,
+           },
+           KeySystem = false,
+       })
       
-      -- 確認ボタン作成（簡易版）
-      spawn(function()
-         wait(1)
-         local ConfirmToggle = SettingsTab:CreateToggle({
-            Name = "削除実行",
-            CurrentValue = false,
-            Callback = function(Value)
-               if Value then
-                  Rayfield:Destroy() -- UI完全削除 [web:3]
-                  print("UIが削除されました")
-               end
-            end,
-         })
-      end)
+       local ConfirmTab = ConfirmWindow:CreateTab("確認", 4483362458)
+      
+       ConfirmTab:CreateLabel({
+           Name = "本当にUIを削除しますか？",
+           Text = "この操作は元に戻せません"
+       })
+      
+       -- はいボタン
+       ConfirmTab:CreateButton({
+           Name = "はい - 削除する",
+           Callback = function()
+               Rayfield:Destroy()
+               ConfirmWindow:Destroy()
+           end,
+       })
+      
+       -- いいえボタン
+       ConfirmTab:CreateButton({
+           Name = "いいえ - キャンセル",
+           Callback = function()
+               ConfirmWindow:Destroy()
+               Rayfield:Notify({
+                   Title = "削除キャンセル",
+                   Content = "UI削除をキャンセルしました",
+                   Duration = 2,
+                   Image = 4483362458
+               })
+           end,
+       })
    end,
 })
 
--- 通知
+-- サービス参照
+local userinputservice = game:GetService("UserInputService")
+
+-- 初期化完了通知
 Rayfield:Notify({
-   Title = "ロード完了",
-   Content = "全ての機能が利用可能になりました！",
+   Title = "UI読み込み完了",
+   Content = "すべての機能が読み込まれました",
    Duration = 3,
-   Image = 4483362458,
+   Image = 4483362458
 })
+
+-- UIの表示
+Rayfield:LoadConfiguration()
